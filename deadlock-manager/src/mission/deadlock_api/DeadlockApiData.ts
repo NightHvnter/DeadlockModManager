@@ -94,6 +94,11 @@ export class DeadlockApiData {
         return { total: filtered.length, mods: filtered.slice(start, start + size) }
     }
 
+    /** Categorie distinte presenti nelle mod in cache, in ordine alfabetico. */
+    public categories(): string[] {
+        return [...new Set(this.cache.map((m) => m.category))].sort()
+    }
+
     /**
      * 
      * @returns The status of the latest refresh
