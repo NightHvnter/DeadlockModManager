@@ -4,18 +4,18 @@ import { createContext, useContext, useEffect, useState } from 'react'
 export const THEME_IDS = ['light', 'dark', 'system', 'ocean', 'forest'] as const
 export type Theme = (typeof THEME_IDS)[number]
 
+/** Il nome visualizzato di ogni tema è nei testi tradotti, alla chiave `theme.<id>`. */
 interface ThemeDef {
-  label: string
   /** Tema di partenza dei temi custom: decide se attivare la classe `dark`. */
   base?: 'light' | 'dark'
 }
 
 export const THEMES: Record<Theme, ThemeDef> = {
-  light: { label: 'Chiaro' },
-  dark: { label: 'Scuro' },
-  system: { label: 'Sistema' },
-  ocean: { label: 'Oceano', base: 'dark' },
-  forest: { label: 'Foresta', base: 'dark' }
+  light: {},
+  dark: {},
+  system: {},
+  ocean: { base: 'dark' },
+  forest: { base: 'dark' }
 }
 
 interface ThemeContextValue {

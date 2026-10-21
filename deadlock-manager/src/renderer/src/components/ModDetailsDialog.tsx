@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
+import { useI18n } from '@/hooks/useI18n'
 import { sanitizeHtml } from '@/lib/sanitizeHtml'
 import { cn } from '@/lib/utils'
 import InstallButton from './InstallButton'
@@ -49,6 +50,7 @@ function Details({ mod }: { mod: Mod }): React.JSX.Element {
   const [downloads, setDownloads] = useState<ModDownload[] | null>(null)
   const [downloadsError, setDownloadsError] = useState<string | null>(null)
   const [fileName, setFileName] = useState<string | undefined>()
+  const { t, formatNumber, formatDate } = useI18n()
   const description = useMemo(
     () => (mod.description ? sanitizeHtml(mod.description) : ''),
     [mod.description]
@@ -70,9 +72,12 @@ function Details({ mod }: { mod: Mod }): React.JSX.Element {
       <DialogHeader>
         <DialogTitle className="pr-8 text-lg">{mod.name}</DialogTitle>
         <DialogDescription>
-          di {mod.author} · {mod.downloadCount.toLocaleString()} download ·{' '}
-          {mod.likes.toLocaleString()} mi piace · aggiornata il{' '}
-          {new Date(mod.remoteUpdatedAt).toLocaleDateString()}
+          {t('details.byline', {
+            author: mod.author,
+            downloads: formatNumber(mod.downloadCount),
+            likes: formatNumber(mod.likes),
+            date: formatDate(mod.remoteUpdatedAt)
+          })}
         </DialogDescription>
       </DialogHeader>
 
@@ -86,6 +91,7 @@ function Details({ mod }: { mod: Mod }): React.JSX.Element {
                   size="icon-sm"
                   variant="secondary"
                   className="absolute top-1/2 left-2 -translate-y-1/2"
+                  aria-label={t('details.previousImage')}
                   onClick={() => setIndex((index - 1 + images.length) % images.length)}
                 >
                   <ChevronLeft />
@@ -94,6 +100,7 @@ function Details({ mod }: { mod: Mod }): React.JSX.Element {
                   size="icon-sm"
                   variant="secondary"
                   className="absolute top-1/2 right-2 -translate-y-1/2"
+                  aria-label={t('details.nextImage')}
                   onClick={() => setIndex((index + 1) % images.length)}
                 >
                   <ChevronRight />
@@ -124,8 +131,8 @@ function Details({ mod }: { mod: Mod }): React.JSX.Element {
       <div className="flex flex-wrap gap-1">
         <Badge variant="secondary">{mod.category}</Badge>
         {mod.hero && <Badge variant="outline">{mod.hero}</Badge>}
-        {mod.isAudio && <Badge variant="outline">Audio</Badge>}
-        {mod.isMap && <Badge variant="outline">Mappa</Badge>}
+        {mod.isAudio && <Badge variant="outline">{t('mod.audio')}</Badge>}
+        {mod.isMap && <Badge variant="outline">{t('mod.map')}</Badge>}
         {mod.isNSFW && <Badge variant="destructive">NSFW</Badge>}
         {mod.tags
           .filter((t) => t !== mod.hero)
@@ -147,7 +154,7 @@ function Details({ mod }: { mod: Mod }): React.JSX.Element {
 
       {!!mod.dependencies?.length && (
         <div className="space-y-1">
-          <h3 className="font-medium">Dipendenze</h3>
+          <h3 className="font-medium">{t('details.dependencies')}</h3>
           <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
             {mod.dependencies.map((d) => (
               <li key={d.label}>
@@ -158,8 +165,8 @@ function Details({ mod }: { mod: Mod }): React.JSX.Element {
                 ) : (
                   d.label
                 )}
-                {d.level === 'required' && ' (richiesta)'}
-                {d.level === 'recommended' && ' (consigliata)'}
+                {d.level === 'required' && ` ${t('details.required')}`}
+                {d.level === 'recommended' && ` ${t('details.recommended')}`}
               </li>
             ))}
           </ul>
@@ -187,9 +194,9 @@ function Details({ mod }: { mod: Mod }): React.JSX.Element {
             {downloads[0].name} ({formatSize(downloads[0].size)})
           </span>
         ) : downloads ? (
-          <span className="text-muted-foreground">Nessun file scaricabile</span>
+          <span className="text-muted-foreground">{t('details.noFiles')}</span>
         ) : (
-          <span className="text-muted-foreground">Caricamento dei file...</span>
+          <span className="text-muted-foreground">{t('details.loadingFiles')}</span>
         )}
 
         <div className="ml-auto flex gap-2">

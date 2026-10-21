@@ -1,4 +1,5 @@
 import { InstalledMod, Mod, ModDownload } from "../types"
+import { AppError } from "../i18n"
 
 import { createHash } from 'node:crypto'
 import { constants, createReadStream, createWriteStream } from 'node:fs'
@@ -44,7 +45,7 @@ export class ManageMods {
     download?: ModDownload,
     onProgress?: ProgressCallback,
   ): Promise<string[]> {
-    if ((await readManifest())[mod.id]) throw new Error('Mod già installata')
+    if ((await readManifest())[mod.id]) throw new AppError('error.alreadyInstalled')
 
     const citadel = join(gamePath, 'game', 'citadel')
     const addons = join(citadel, 'addons')
@@ -53,13 +54,13 @@ export class ManageMods {
 
     try {
       const file = download ?? (await this.getDownloads(mod.remoteId))[0]
-      if (!file) throw new Error('Nessun file scaricabile per questa mod')
+      if (!file) throw new AppError('error.noDownloads')
 
       // 1. Download e verifica
       const archive = join(tmp, basename(file.name))
       await this.downloadFile(file.url, archive, file.size, onProgress)
       if (file.md5Checksum && (await this.md5(archive)) !== file.md5Checksum.toLowerCase()) {
-        throw new Error('Checksum MD5 non valido: file corrotto')
+        throw new AppError('error.checksum')
       }
 
       // 2. Estrazione
@@ -69,12 +70,12 @@ export class ManageMods {
       if (ext === '.zip') await extract(archive, extracted)
       else if (ext === '.rar') await extractRar(archive, extracted)
       else if (ext === '.vpk') await copyFile(archive, join(extracted, basename(archive)))
-      else throw new Error(`Formato non supportato: ${ext}`)
+      else throw new AppError('error.unsupportedFormat', { ext })
 
       // 3. Copia dei VPK in addons con il prefisso pakNN
       const vpks = (await readdir(extracted, { recursive: true }))
         .filter((f) => f.toLowerCase().endsWith('_dir.vpk'))
-      if (vpks.length === 0) throw new Error('Nessun file _dir.vpk trovato nella mod')
+      if (vpks.length === 0) throw new AppError('error.noVpk')
 
       await mkdir(addons, { recursive: true })
       for (const rel of vpks) {
@@ -135,7 +136,7 @@ export class ManageMods {
   /** File scaricabili di una mod. L'API li indicizza per `remoteId`, non per `id`. */
   public static async getDownloads(remoteId: string): Promise<ModDownload[]> {
     const res = await fetch(`${API}/mods/${remoteId}/downloads`)
-    if (!res.ok) throw new Error(`API error: ${res.status}`)
+    if (!res.ok) throw new AppError('error.api', { status: res.status })
     return (await res.json()).downloads
   }
 
@@ -146,7 +147,7 @@ export class ManageMods {
     onProgress?: ProgressCallback,
   ): Promise<void> {
     const res = await fetch(url)
-    if (!res.ok || !res.body) throw new Error(`Download fallito: ${res.status}`)
+    if (!res.ok || !res.body) throw new AppError('error.downloadFailed', { status: res.status })
     const total = Number(res.headers.get('content-length')) || size || 0
     let received = 0
     let lastReport = 0
@@ -180,7 +181,7 @@ export class ManageMods {
       const n = String(i).padStart(2, '0')
       if (!used.has(n)) return n
     }
-    throw new Error('Nessun indice pakNN libero')
+    throw new AppError('error.noFreeIndex')
   }
 
   /** Aggiunge `Game citadel/addons` a `gameinfo.gi` (con backup `.bak`) se manca. */
@@ -190,7 +191,7 @@ export class ManageMods {
     if (/^\s*Game\s+citadel\/addons\s*$/m.test(text)) return
 
     const re = /(SearchPaths\s*\{\r?\n)/
-    if (!re.test(text)) throw new Error('SearchPaths non trovato in gameinfo.gi')
+    if (!re.test(text)) throw new AppError('error.searchPaths')
     await copyFile(path, `${path}.bak`, constants.COPYFILE_EXCL).catch(() => {})
     await writeFile(path, text.replace(re, (m) => `${m}\t\t\tGame\t\t\t\tcitadel/addons\n`))
   }
@@ -199,7 +200,7 @@ export class ManageMods {
     return this.exclusive(async () => {
       const manifest = await readManifest()
       const entry = manifest[modId]
-      if (!entry) throw new Error('Mod non installata')
+      if (!entry) throw new AppError('error.notInstalled')
 
       if (entry.enabled) {
         const addons = join(gamePath, 'game', 'citadel', 'addons')
@@ -221,7 +222,7 @@ export class ManageMods {
     return this.exclusive(async () => {
       const manifest = await readManifest()
       const entry = manifest[modId]
-      if (!entry) throw new Error('Mod non installata')
+      if (!entry) throw new AppError('error.notInstalled')
       if (entry.enabled === enabled) return entry
 
       const citadel = join(gamePath, 'game', 'citadel')

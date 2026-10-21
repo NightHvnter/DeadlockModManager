@@ -1,17 +1,20 @@
 import { NavLink } from 'react-router'
 import { Download, LayoutGrid, Package} from 'lucide-react'
 import { buttonVariants } from '@/components/ui/button'
+import { useI18n } from '@/hooks/useI18n'
 import { cn } from '@/lib/utils'
 import SettingsSheet from './SettingsSheet'
+import type { MessageKey } from '../../../mission/i18n'
 
 /** Voci di navigazione dell'app. */
-const links = [
-  { to: '/', label: 'Mod', icon: LayoutGrid },
-  { to: '/installed', label: 'Installate', icon: Download }
+const links: { to: string; label: MessageKey; icon: typeof LayoutGrid }[] = [
+  { to: '/', label: 'nav.mods', icon: LayoutGrid },
+  { to: '/installed', label: 'nav.installed', icon: Download }
 ]
 
 /** Barra di navigazione fissa in alto, con il titolo, i link alle pagine e il cambio tema. */
 export default function AppBar(): React.JSX.Element {
+  const { t } = useI18n()
 
   return (
     <nav className="sticky top-0 z-10 flex items-center gap-2 border-b bg-background/80 px-4 py-2 backdrop-blur">
@@ -30,7 +33,7 @@ export default function AppBar(): React.JSX.Element {
           }
         >
           <Icon className="size-4" />
-          {label}
+          {t(label)}
         </NavLink>
       ))}
 

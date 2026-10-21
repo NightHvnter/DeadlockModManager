@@ -18,18 +18,25 @@ import type {
   ModFilters,
   Settings
 } from '../mission/types'
+import { AppError, describeError, detectLanguage, translate, type Language } from '../mission/i18n'
 
 /** Istanza dell'API delle mod, `undefined` finché il primo caricamento non è finito. */
 let api: DeadlockApiData | undefined
 /** Primo caricamento delle mod: i gestori IPC che hanno bisogno dei dati lo attendono. */
 let apiReady: Promise<DeadlockApiData>
+/** Lingua usata per i messaggi del processo main (errori e finestre di dialogo). */
+let language: Language = 'en'
+
+/** Lingua scelta nelle impostazioni o, se non c'è, quella del sistema. */
+const resolveLanguage = (settings: Settings): Language =>
+  settings.language ?? detectLanguage(app.getLocale())
 
 /** Esegue `fn` e ne converte l'esito in un `IpcResult`, catturando gli errori. */
 async function toResult<T>(fn: () => T | Promise<T>): Promise<IpcResult<T>> {
   try {
     return { ok: true, data: await fn() }
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : 'Errore sconosciuto' }
+    return { ok: false, error: describeError(e, language) }
   }
 }
 
@@ -91,25 +98,25 @@ function registerIpc(): void {
   )
   ipcMain.handle(
     'mods:status',
-    () => api?.status() ?? { lastError: undefined, lastUpdated: undefined, total: 0 }
+    () => api?.status(language) ?? { lastError: undefined, lastUpdated: undefined, total: 0 }
   )
   ipcMain.handle('mods:refresh', () => toResult(async () => (await apiReady).refresh()))
   ipcMain.handle('mods:downloads', (_, modId: string) =>
     toResult(async () => {
       const mod = (await apiReady).getById(modId)
-      if (!mod) throw new Error('Mod non trovata')
+      if (!mod) throw new AppError('error.modNotFound')
       return ManageMods.getDownloads(mod.remoteId)
     })
   )
   ipcMain.handle('mods:install', (event, modId: string, fileName?: string) =>
     toResult(async () => {
       const mod = (await apiReady).getById(modId)
-      if (!mod) throw new Error('Mod non trovata')
+      if (!mod) throw new AppError('error.modNotFound')
       const gamePath = await requireGamePath()
       const download = fileName
         ? (await ManageMods.getDownloads(mod.remoteId)).find((d) => d.name === fileName)
         : undefined
-      if (fileName && !download) throw new Error('File non trovato')
+      if (fileName && !download) throw new AppError('error.fileNotFound')
       return ManageMods.installMod(mod, gamePath, download, (received, total) => {
         const progress: InstallProgress = { modId, received, total }
         if (!event.sender.isDestroyed()) event.sender.send('mods:progress', progress)
@@ -119,7 +126,7 @@ function registerIpc(): void {
   ipcMain.handle('mods:update', (event, modId: string) =>
     toResult(async () => {
       const mod = (await apiReady).getById(modId)
-      if (!mod) throw new Error('Mod non più disponibile')
+      if (!mod) throw new AppError('error.modUnavailable')
       const gamePath = await requireGamePath()
       await ManageMods.uninstallMod(modId, gamePath)
       return ManageMods.installMod(mod, gamePath, undefined, (received, total) => {
@@ -144,14 +151,16 @@ function registerIpc(): void {
   ipcMain.handle('settings:set', (_, patch: Partial<Settings>) =>
     toResult(async () => {
       if (patch.gamePath && !(await isValidGamePath(patch.gamePath)))
-        throw new Error('La cartella scelta non contiene Deadlock (manca game/citadel/gameinfo.gi)')
-      return writeSettings(patch)
+        throw new AppError('error.invalidGameFolder')
+      const settings = await writeSettings(patch)
+      language = resolveLanguage(settings)
+      return settings
     })
   )
   ipcMain.handle('settings:detectGamePath', () =>
     toResult(async () => {
       const gamePath = await detectGamePath()
-      if (!gamePath) throw new Error('Deadlock non trovato nelle librerie di Steam')
+      if (!gamePath) throw new AppError('error.deadlockNotFound')
       return writeSettings({ gamePath })
     })
   )
@@ -159,7 +168,7 @@ function registerIpc(): void {
     toResult(async () => {
       const window = BrowserWindow.fromWebContents(event.sender)
       const options: Electron.OpenDialogOptions = {
-        title: 'Seleziona la cartella di Deadlock',
+        title: translate(language, 'dialog.chooseGameFolder'),
         properties: ['openDirectory']
       }
       const { canceled, filePaths } = window
@@ -167,7 +176,7 @@ function registerIpc(): void {
         : await dialog.showOpenDialog(options)
       if (canceled || !filePaths[0]) return null
       if (!(await isValidGamePath(filePaths[0])))
-        throw new Error('La cartella scelta non contiene Deadlock (manca game/citadel/gameinfo.gi)')
+        throw new AppError('error.invalidGameFolder')
       return writeSettings({ gamePath: filePaths[0] })
     })
   )
@@ -194,6 +203,8 @@ app.whenReady().then(async () => {
     optimizer.watchWindowShortcuts(window)
   })
 
+  language = resolveLanguage(await readSettings())
+
   // Primo caricamento delle mod, in parallelo all'apertura della finestra (l'API è lenta).
   // Con una lista salvata è immediato e l'aggiornamento avviene in background; quando la
   // lista nuova è scaricata del tutto il renderer viene avvisato con `mods:updated`.
@@ -204,7 +215,10 @@ app.whenReady().then(async () => {
   apiReady.then(
     (instance) => (api = instance),
     (e) => {
-      dialog.showErrorBox('Errore', `Impossibile caricare le mod: ${(e as Error).message}`)
+      dialog.showErrorBox(
+        translate(language, 'dialog.errorTitle'),
+        translate(language, 'dialog.loadModsFailed', { message: describeError(e, language) })
+      )
       app.quit()
     }
   )

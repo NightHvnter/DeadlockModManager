@@ -4,6 +4,7 @@ import { access, readFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
+import { AppError } from '../i18n'
 import { DEFAULT_SETTINGS, type Settings } from '../types'
 
 const settingsPath = (): string => join(app.getPath('userData'), 'settings.json')
@@ -37,9 +38,9 @@ export function isValidGamePath(path: string): Promise<boolean> {
 /** Restituisce il percorso del gioco salvato, o un errore se manca o non è valido. */
 export async function requireGamePath(): Promise<string> {
   const { gamePath } = await readSettings()
-  if (!gamePath) throw new Error('Imposta la cartella di Deadlock nelle impostazioni')
+  if (!gamePath) throw new AppError('error.gamePathNotSet')
   if (!(await isValidGamePath(gamePath)))
-    throw new Error(`La cartella di Deadlock non è valida: ${gamePath}`)
+    throw new AppError('error.gamePathInvalid', { path: gamePath })
   return gamePath
 }
 

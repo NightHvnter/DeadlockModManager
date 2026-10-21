@@ -1,5 +1,6 @@
 import { createExtractorFromFile } from 'node-unrar-js'
 import { resolve, sep } from 'node:path'
+import { AppError } from '../i18n'
 
 /**
  * Estrae i file `.vpk` di un archivio RAR in `destDir`, ignorando i percorsi fuori dalla cartella.
@@ -11,7 +12,7 @@ export async function extractRar(rarPath: string, destDir: string): Promise<void
   const { files } = extractor.extract({
     files: ({ name, flags }) => {
       if (flags.directory || !name.toLowerCase().endsWith('.vpk')) return false
-      if (!resolve(destDir, name).startsWith(root)) throw new Error(`Percorso non valido: ${name}`)
+      if (!resolve(destDir, name).startsWith(root)) throw new AppError('error.invalidPath', { path: name })
       return true
     }
   })

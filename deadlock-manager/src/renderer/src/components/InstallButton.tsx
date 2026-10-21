@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button'
+import { useI18n } from '@/hooks/useI18n'
 import { useModActions } from '@/hooks/useModActions'
 import type { Mod } from '../../../mission/types'
 
@@ -19,9 +20,10 @@ export default function InstallButton({
   const installed = installedIds.includes(mod.id)
   const busy = isBusy(mod.id)
   const p = progress(mod.id)
+  const { t } = useI18n()
 
-  let label = installed ? 'Disinstalla' : 'Installa'
-  if (busy) label = p !== undefined && p < 1 ? `${Math.round(p * 100)}%` : 'Attendi...'
+  let label = t(installed ? 'mod.uninstall' : 'mod.install')
+  if (busy) label = p !== undefined && p < 1 ? `${Math.round(p * 100)}%` : t('mod.wait')
 
   return (
     <Button

@@ -1,5 +1,6 @@
 import { readFile, rename, writeFile } from "node:fs/promises";
 import { ModFilters, ModSearchResult, type Mod, type Status } from "../types";
+import { AppError, describeError, type Language } from "../i18n";
 
 const BASE_URL = "https://api.deadlockmods.app/"
 const MODS_URL = BASE_URL + "api/v2/mods"
@@ -26,7 +27,8 @@ export class DeadlockApiData {
     private timer?: NodeJS.Timeout
 
     private lastUpdated?: Date
-    private lastError?: string
+    /** Errore dell'ultimo aggiornamento, tradotto solo quando viene letto con `status()`. */
+    private lastError?: unknown
 
     /** ETag dell'ultima lista scaricata: se non cambia l'API risponde 304 senza corpo. */
     private etag?: string
@@ -116,7 +118,7 @@ export class DeadlockApiData {
                 this.lastUpdated = new Date()
                 return false
             }
-            if (!res.ok) throw new Error(`Impossibile scaricare le mod dall'API (${res.status})`)
+            if (!res.ok) throw new AppError('error.modListFailed', { status: res.status })
             // la lista in memoria viene sostituita solo a download completato
             this.cache = await res.json()
             this.etag = res.headers.get('etag') ?? undefined
@@ -126,7 +128,7 @@ export class DeadlockApiData {
             this.onUpdate?.()
             return true
         } catch (e) {
-            this.lastError = e instanceof Error ? e.message : String(e)
+            this.lastError = e
             throw e
         }
     }
@@ -186,10 +188,15 @@ export class DeadlockApiData {
 
     /**
      *
+     * @param language Language of the error message
      * @returns The status of the latest refresh
      */
-    status(): Status {
-        return { lastError: this.lastError, lastUpdated: this.lastUpdated, total: this.cache.length }
+    status(language: Language = 'it'): Status {
+        return {
+            lastError: this.lastError === undefined ? undefined : describeError(this.lastError, language),
+            lastUpdated: this.lastUpdated,
+            total: this.cache.length,
+        }
     }
 
     /**

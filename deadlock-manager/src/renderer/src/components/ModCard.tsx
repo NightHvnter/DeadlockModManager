@@ -1,4 +1,5 @@
-import { Heart, Music } from 'lucide-react'
+import { Download, Heart, Music } from 'lucide-react'
+import { useI18n } from '@/hooks/useI18n'
 import { Badge } from '@/components/ui/badge'
 import {
   Card,
@@ -20,6 +21,7 @@ interface ModCardProps {
 /** Card di una mod, con immagine, categoria, eroe e pulsante Installa/Disinstalla. */
 export default function ModCard({ mod, onOpen }: ModCardProps): React.JSX.Element {
   const image = mod.thumbnailUrl ?? mod.images[0]
+  const { t, formatNumber } = useI18n()
 
   return (
     <Card className="overflow-hidden pt-0">
@@ -48,15 +50,18 @@ export default function ModCard({ mod, onOpen }: ModCardProps): React.JSX.Elemen
       <CardContent className="flex flex-wrap gap-1">
         <Badge variant="secondary">{mod.category}</Badge>
         {mod.hero && <Badge variant="outline">{mod.hero}</Badge>}
-        {mod.isAudio && <Badge variant="outline">Audio</Badge>}
+        {mod.isAudio && <Badge variant="outline">{t('mod.audio')}</Badge>}
         {mod.isNSFW && <Badge variant="destructive">NSFW</Badge>}
       </CardContent>
       <CardFooter className="mt-auto justify-between gap-2">
         <span className="flex items-center gap-3 text-sm text-muted-foreground">
-          <span title="Download">{mod.downloadCount.toLocaleString()} dl</span>
-          <span className="flex items-center gap-1" title="Mi piace">
+          <span className="flex items-center gap-1" title={t('mod.downloads')}>
+            <Download className="size-3.5" />
+            {formatNumber(mod.downloadCount)}
+          </span>
+          <span className="flex items-center gap-1" title={t('mod.likes')}>
             <Heart className="size-3.5" />
-            {mod.likes.toLocaleString()}
+            {formatNumber(mod.likes)}
           </span>
         </span>
         <InstallButton mod={mod} />

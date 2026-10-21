@@ -4,6 +4,7 @@ import { mkdir } from 'node:fs/promises'
 import { dirname, resolve, sep } from 'node:path'
 import type { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
+import { AppError } from '../i18n'
 
 /**
  * Estrae uno zip in `destDir`, rifiutando percorsi fuori dalla cartella e ignorando i symlink.
@@ -19,7 +20,7 @@ export function extractZip(zipPath: string, destDir: string): Promise<void> {
       zip.on('entry', async (entry) => {
         try {
           const target = resolve(destDir, entry.fileName)
-          if (!target.startsWith(root)) throw new Error(`Percorso non valido: ${entry.fileName}`)
+          if (!target.startsWith(root)) throw new AppError('error.invalidPath', { path: entry.fileName })
           const isSymlink = ((entry.externalFileAttributes >>> 16) & 0o170000) === 0o120000
           if (entry.fileName.endsWith('/')) {
             await mkdir(target, { recursive: true })

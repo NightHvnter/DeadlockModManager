@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { ModActionsContext } from '@/hooks/useModActions'
+import { useI18n } from '@/hooks/useI18n'
 import type { IpcResult } from '../../../../mission/types'
 
 /** Gestisce le operazioni sulle mod e il loro avanzamento per tutta l'app. */
@@ -9,6 +10,7 @@ export function ModActionsProvider({ children }: { children: React.ReactNode }):
   const [busy, setBusy] = useState<Set<string>>(new Set())
   const [progress, setProgress] = useState<Record<string, number>>({})
   const [version, setVersion] = useState(0)
+  const { t } = useI18n()
 
   const reload = useCallback(async () => {
     setInstalledIds(await window.api.getInstalledMods())
@@ -59,15 +61,15 @@ export function ModActionsProvider({ children }: { children: React.ReactNode }):
     isBusy: (modId: string) => busy.has(modId),
     progress: (modId: string) => progress[modId],
     install: (modId: string, fileName?: string) =>
-      run(modId, () => window.api.installMod(modId, fileName), 'Mod installata'),
+      run(modId, () => window.api.installMod(modId, fileName), t('mod.installed')),
     uninstall: (modId: string) =>
-      run(modId, () => window.api.uninstallMod(modId), 'Mod disinstallata'),
-    update: (modId: string) => run(modId, () => window.api.updateMod(modId), 'Mod aggiornata'),
+      run(modId, () => window.api.uninstallMod(modId), t('mod.uninstalled')),
+    update: (modId: string) => run(modId, () => window.api.updateMod(modId), t('mod.updated')),
     setEnabled: (modId: string, enabled: boolean) =>
       run(
         modId,
         () => window.api.setModEnabled(modId, enabled),
-        enabled ? 'Mod attivata' : 'Mod disattivata'
+        t(enabled ? 'mod.enabled' : 'mod.disabled')
       )
   }
 

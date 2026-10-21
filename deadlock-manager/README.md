@@ -12,6 +12,14 @@ App desktop (Electron + React + TypeScript) per cercare, installare e gestire le
 - Pagina **Installate**: attiva/disattiva, aggiorna e disinstalla le mod
 - Rilevamento automatico della cartella di Deadlock nelle librerie di Steam (Windows, Linux, macOS)
 - Temi chiaro, scuro, sistema, oceano e foresta
+- Interfaccia in italiano, inglese, spagnolo, francese e tedesco (di default la lingua del sistema)
+
+## Traduzioni
+
+I testi sono in `src/mission/i18n/locales`, condivisi tra interfaccia e processo main.
+`it.ts` è il dizionario di riferimento: le altre lingue sono tipizzate sulle sue chiavi, quindi
+`npm run typecheck` segnala qualsiasi traduzione mancante. Per aggiungere una lingua basta creare
+il suo file e registrarla in `LANGUAGES` e `MESSAGES` in `src/mission/i18n/index.ts`.
 
 ## Come funziona l'installazione
 

@@ -11,7 +11,9 @@ import {
 } from '@/components/ui/select'
 import ModCard from '@/components/ModCard'
 import ModDetailsDialog from '@/components/ModDetailsDialog'
+import { useI18n } from '@/hooks/useI18n'
 import { useSettings } from '@/hooks/useSettings'
+import type { MessageKey } from '../../../mission/i18n'
 import { Hero, HEROES, type Mod, type ModFilters, type ModSortField } from '../../../mission/types'
 import Spinner from '@renderer/components/Spinner'
 
@@ -20,26 +22,27 @@ const PAGE_SIZE = 20
 const ALL = 'all'
 
 /** Opzioni di ordinamento: il valore è "campo:direzione". */
-const SORT_OPTIONS = [
-  { value: 'downloadCount:desc', label: 'Più scaricate' },
-  { value: 'likes:desc', label: 'Più apprezzate' },
-  { value: 'remoteAddedAt:desc', label: 'Più recenti' },
-  { value: 'remoteUpdatedAt:desc', label: 'Aggiornate di recente' },
-  { value: 'name:asc', label: 'Nome (A-Z)' },
-  { value: 'name:desc', label: 'Nome (Z-A)' }
+const SORT_OPTIONS: { value: string; label: MessageKey }[] = [
+  { value: 'downloadCount:desc', label: 'sort.downloads' },
+  { value: 'likes:desc', label: 'sort.likes' },
+  { value: 'remoteAddedAt:desc', label: 'sort.newest' },
+  { value: 'remoteUpdatedAt:desc', label: 'sort.updated' },
+  { value: 'name:asc', label: 'sort.nameAsc' },
+  { value: 'name:desc', label: 'sort.nameDesc' }
 ]
 
 /** Filtro per tipo di mod. */
-const TYPE_OPTIONS: { value: string; label: string; filters: Partial<ModFilters> }[] = [
-  { value: ALL, label: 'Tutti i tipi', filters: {} },
-  { value: 'visual', label: 'Grafiche', filters: { isAudio: false, isMap: false } },
-  { value: 'audio', label: 'Audio', filters: { isAudio: true } },
-  { value: 'map', label: 'Mappe', filters: { isMap: true } }
+const TYPE_OPTIONS: { value: string; label: MessageKey; filters: Partial<ModFilters> }[] = [
+  { value: ALL, label: 'home.allTypes', filters: {} },
+  { value: 'visual', label: 'home.typeVisual', filters: { isAudio: false, isMap: false } },
+  { value: 'audio', label: 'home.typeAudio', filters: { isAudio: true } },
+  { value: 'map', label: 'home.typeMap', filters: { isMap: true } }
 ]
 
 /** Pagina con l'elenco delle mod, i filtri e la paginazione. */
 export default function Home(): React.JSX.Element {
   const { settings } = useSettings()
+  const { t, formatNumber } = useI18n()
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState(ALL)
   const [hero, setHero] = useState(ALL)
@@ -131,7 +134,7 @@ export default function Home(): React.JSX.Element {
       <div className="flex flex-wrap gap-2">
         <Input
           className="max-w-sm"
-          placeholder="Cerca una mod..."
+          placeholder={t('home.search')}
           value={search}
           onChange={(e) => {
             setSearch(e.target.value)
@@ -141,10 +144,10 @@ export default function Home(): React.JSX.Element {
 
         <Select value={category} onValueChange={onSelect(setCategory)}>
           <SelectTrigger className="w-52">
-            <SelectValue>{category === ALL ? 'Tutte le categorie' : category}</SelectValue>
+            <SelectValue>{category === ALL ? t('home.allCategories') : category}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={ALL}>Tutte le categorie</SelectItem>
+            <SelectItem value={ALL}>{t('home.allCategories')}</SelectItem>
             {categories.map((c) => (
               <SelectItem key={c} value={c}>
                 {c}
@@ -155,10 +158,10 @@ export default function Home(): React.JSX.Element {
 
         <Select value={hero} onValueChange={onSelect(setHero)}>
           <SelectTrigger className="w-44">
-            <SelectValue>{hero === ALL ? 'Tutti gli eroi' : hero}</SelectValue>
+            <SelectValue>{hero === ALL ? t('home.allHeroes') : hero}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={ALL}>Tutti gli eroi</SelectItem>
+            <SelectItem value={ALL}>{t('home.allHeroes')}</SelectItem>
             {HEROES.map((h) => (
               <SelectItem key={h} value={h}>
                 {h}
@@ -169,12 +172,12 @@ export default function Home(): React.JSX.Element {
 
         <Select value={type} onValueChange={onSelect(setType)}>
           <SelectTrigger className="w-36">
-            <SelectValue>{TYPE_OPTIONS.find((o) => o.value === type)?.label}</SelectValue>
+            <SelectValue>{t(TYPE_OPTIONS.find((o) => o.value === type)?.label ?? 'home.allTypes')}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             {TYPE_OPTIONS.map((o) => (
               <SelectItem key={o.value} value={o.value}>
-                {o.label}
+                {t(o.label)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -182,12 +185,12 @@ export default function Home(): React.JSX.Element {
 
         <Select value={sort} onValueChange={onSelect(setSort)}>
           <SelectTrigger className="w-52">
-            <SelectValue>{SORT_OPTIONS.find((o) => o.value === sort)?.label}</SelectValue>
+            <SelectValue>{t(SORT_OPTIONS.find((o) => o.value === sort)?.label ?? 'sort.downloads')}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             {SORT_OPTIONS.map((o) => (
               <SelectItem key={o.value} value={o.value}>
-                {o.label}
+                {t(o.label)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -197,15 +200,15 @@ export default function Home(): React.JSX.Element {
       {loading ? (
         <div className="flex flex-col items-center gap-3 py-20 text-muted-foreground">
           <Spinner />
-          <span>Caricamento...</span>
+          <span>{t('home.loading')}</span>
         </div>
       ) : mods.length === 0 ? (
         <div className="py-20 text-center text-muted-foreground">
-          Nessuna mod corrisponde ai filtri.
+          {t('home.empty')}
         </div>
       ) : (
         <>
-          <div className="text-sm text-muted-foreground">{total.toLocaleString()} mod trovate</div>
+          <div className="text-sm text-muted-foreground">{t('home.found', { count: formatNumber(total) })}</div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {mods.map((mod) => (
               <ModCard key={mod.id} mod={mod} onOpen={() => setSelected(mod)} />
@@ -214,13 +217,13 @@ export default function Home(): React.JSX.Element {
 
           <div className="flex items-center justify-center gap-4">
             <Button variant="outline" disabled={page <= 1} onClick={() => goTo(page - 1)}>
-              Precedente
+              {t('home.previous')}
             </Button>
             <span className="text-sm">
-              Pagina {page} di {totalPages}
+              {t('home.page', { page, total: totalPages })}
             </span>
             <Button variant="outline" disabled={page >= totalPages} onClick={() => goTo(page + 1)}>
-              Successiva
+              {t('home.next')}
             </Button>
           </div>
         </>

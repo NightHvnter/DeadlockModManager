@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import Spinner from '@/components/Spinner'
+import { useI18n } from '@/hooks/useI18n'
 import { useModActions } from '@/hooks/useModActions'
 import type { InstalledModInfo } from '../../../mission/types'
 
@@ -16,6 +17,7 @@ export default function Installed(): React.JSX.Element {
   const { version, isBusy, progress, uninstall, update, setEnabled } = useModActions()
   const [mods, setMods] = useState<InstalledModInfo[] | null>(null)
   const [search, setSearch] = useState('')
+  const { t, formatDate } = useI18n()
 
   // ricarica l'elenco a ogni installazione, disinstallazione o cambio di stato
   useEffect(() => {
@@ -52,25 +54,25 @@ export default function Installed(): React.JSX.Element {
       <div className="flex flex-wrap items-center gap-2">
         <Input
           className="max-w-sm"
-          placeholder="Cerca tra le installate..."
+          placeholder={t('installed.search')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
         <span className="text-sm text-muted-foreground">
-          {mods.length} installate
-          {updates > 0 && `, ${updates} da aggiornare`}
+          {t('installed.count', { count: mods.length })}
+          {updates > 0 && t('installed.toUpdate', { count: updates })}
         </span>
         <Button variant="outline" size="sm" className="ml-auto" onClick={openAddons}>
           <FolderOpen className="size-4" />
-          Apri cartella addons
+          {t('installed.openAddons')}
         </Button>
       </div>
 
       {mods.length === 0 ? (
         <div className="flex flex-col items-center gap-4 py-20 text-muted-foreground">
-          <span>Non hai ancora installato nessuna mod.</span>
+          <span>{t('installed.empty')}</span>
           <Link to="/" className={buttonVariants({ variant: 'outline' })}>
-            Sfoglia le mod
+            {t('installed.browse')}
           </Link>
         </div>
       ) : (
@@ -98,15 +100,15 @@ export default function Installed(): React.JSX.Element {
                   <div className="text-sm text-muted-foreground">
                     {mod.author}
                     {mod.installedAt &&
-                      ` · installata il ${new Date(mod.installedAt).toLocaleDateString()}`}
+                      ` · ${t('installed.installedOn', { date: formatDate(mod.installedAt) })}`}
                   </div>
                   <div className="flex flex-wrap gap-1">
                     {mod.category && <Badge variant="secondary">{mod.category}</Badge>}
                     {mod.hero && <Badge variant="outline">{mod.hero}</Badge>}
-                    {!mod.enabled && <Badge variant="outline">Disattivata</Badge>}
-                    {mod.updateAvailable && <Badge>Aggiornamento disponibile</Badge>}
+                    {!mod.enabled && <Badge variant="outline">{t('installed.disabled')}</Badge>}
+                    {mod.updateAvailable && <Badge>{t('installed.updateAvailable')}</Badge>}
                     {!mod.available && (
-                      <Badge variant="destructive">Non più disponibile</Badge>
+                      <Badge variant="destructive">{t('installed.unavailable')}</Badge>
                     )}
                   </div>
                 </div>
@@ -117,12 +119,12 @@ export default function Installed(): React.JSX.Element {
                     disabled={busy}
                     onCheckedChange={(checked) => setEnabled(mod.id, checked === true)}
                   />
-                  Attiva
+                  {t('installed.enabled')}
                 </label>
 
                 {mod.updateAvailable && (
                   <Button size="sm" disabled={busy} onClick={() => update(mod.id)}>
-                    {busy && p !== undefined ? `${Math.round(p * 100)}%` : 'Aggiorna'}
+                    {busy && p !== undefined ? `${Math.round(p * 100)}%` : t('installed.update')}
                   </Button>
                 )}
                 <Button
@@ -131,7 +133,7 @@ export default function Installed(): React.JSX.Element {
                   disabled={busy}
                   onClick={() => uninstall(mod.id)}
                 >
-                  {busy ? 'Attendi...' : 'Disinstalla'}
+                  {t(busy ? 'mod.wait' : 'mod.uninstall')}
                 </Button>
               </Card>
             )
