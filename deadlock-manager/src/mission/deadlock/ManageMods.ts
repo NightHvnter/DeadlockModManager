@@ -9,7 +9,7 @@ import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import type { ReadableStream as WebStream } from 'node:stream/web'
 import { readManifest, writeManifest } from "./manifest"
-import extract from 'extract-zip'
+import { extractZip as extract} from "../func/extractZip"
 
 const API = 'https://api.deadlockmods.app/api/v2'
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -41,7 +41,7 @@ export class ManageMods {
       const extracted = join(tmp, 'extracted')
       await mkdir(extracted)
       const ext = extname(file.name).toLowerCase()
-      if (ext === '.zip') await extract(archive, { dir: extracted })
+      if (ext === '.zip') await extract(archive, extracted)
       else if (ext === '.vpk') await copyFile(archive, join(extracted, basename(archive)))
       else throw new Error(`Formato non supportato: ${ext}`)
 
