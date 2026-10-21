@@ -18,11 +18,11 @@ export class DeadlockApiData {
     private timer?: NodeJS.Timeout
 
     private lastUpdated?: Date
-    private lastError?: Error
+    private lastError?: string
 
     /**
      * Crete an instance of the class
-     * @param refreshMs 
+     * @param refreshMs
      * @returns Class instance
      * @throws Error if the API call fails
      */
@@ -30,25 +30,31 @@ export class DeadlockApiData {
         const instance = new DeadlockApiData()
         await instance.refresh()
         instance.timer = setInterval(() => {
-            instance.refresh().catch((e) => { instance.lastError = e })
+            instance.refresh().catch(() => {})
         }, refreshMs)
         return instance
     }
 
     /**
-     * Refreshes the mod list every 10 minutes
+     * Downloads the mod list again and replaces the cache
+     * @throws Error if the API call fails (the error is also kept in `status()`)
      */
-    private async refresh() {
-        const res = await fetch(MODS_URL)
-        if (!res.ok) throw new Error("Error: unable to request mods from api")
-        this.cache = await res.json()
-        this.lastError = undefined
-        this.lastUpdated = new Date()
+    public async refresh(): Promise<void> {
+        try {
+            const res = await fetch(MODS_URL)
+            if (!res.ok) throw new Error(`Impossibile scaricare le mod dall'API (${res.status})`)
+            this.cache = await res.json()
+            this.lastError = undefined
+            this.lastUpdated = new Date()
+        } catch (e) {
+            this.lastError = e instanceof Error ? e.message : String(e)
+            throw e
+        }
     }
-  
+
     /**
-     * 
-     * @param page 
+     *
+     * @param page
      * @param options
      * @returns List of mods (paginated) with cache length
      */
@@ -60,11 +66,11 @@ export class DeadlockApiData {
 
         const filtered = this.cache.filter((m) => {
             if (!f.includeNSFW && m.isNSFW) return false
-            if (f.onlyDownloadable && !m.downloadable) return false
+            if (f.onlyDownloadable && m.downloadable === false) return false
             if (f.category && m.category !== f.category) return false
             if (hero && m.hero?.toLowerCase() !== hero) return false
             if (f.isAudio !== undefined && m.isAudio !== f.isAudio) return false
-            if (f.isMap !== undefined && m.isMap !== f.isMap) return false
+            if (f.isMap !== undefined && Boolean(m.isMap) !== f.isMap) return false
             if (tags?.length) {
                 const modTags = m.tags.map((t) => t.toLowerCase())
                 if (!tags.every((t) => modTags.includes(t))) return false
@@ -100,7 +106,7 @@ export class DeadlockApiData {
     }
 
     /**
-     * 
+     *
      * @returns The status of the latest refresh
      */
     status(): Status {
@@ -110,7 +116,7 @@ export class DeadlockApiData {
     /**
      * Stops the timer
      */
-    stop() {
+    stop(): void {
         clearInterval(this.timer);
     }
 

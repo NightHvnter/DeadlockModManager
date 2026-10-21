@@ -1,2 +1,2 @@
 export { ManageMods } from "./ManageMods"
-export { getInstalledModIds, readManifest, writeManifest } from "./manifest"
+export { getInstalledModIds, getInstalledMods, readManifest, writeManifest } from "./manifest"

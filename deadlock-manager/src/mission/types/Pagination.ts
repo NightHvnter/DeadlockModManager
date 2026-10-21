@@ -40,7 +40,7 @@ export class ModFilters {
   /** Campo di ordinamento. */
   sortBy?: ModSortField = 'likes'
   /** Direzione di ordinamento (default `desc`). */
-  sortOrder?: 'asc' | 'desc' = 'asc'
+  sortOrder?: 'asc' | 'desc' = 'desc'
   /** Mod per pagina. */
   pageSize?: number = 20
 }

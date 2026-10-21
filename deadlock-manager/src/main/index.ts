@@ -1,14 +1,28 @@
 import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
-import { homedir } from 'node:os'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { DeadlockApiData } from '../mission/deadlock_api'
-import { ManageMods, getInstalledModIds } from '../mission/deadlock'
-import type { IpcResult, ModFilters } from '../mission/types'
+import { ManageMods, getInstalledModIds, getInstalledMods } from '../mission/deadlock'
+import {
+  detectGamePath,
+  isValidGamePath,
+  readSettings,
+  requireGamePath,
+  writeSettings
+} from '../mission/settings'
+import type {
+  InstalledModInfo,
+  InstallProgress,
+  IpcResult,
+  ModFilters,
+  Settings
+} from '../mission/types'
 
-/** Istanza dell'API delle mod, creata all'avvio dell'app. */
-let api: DeadlockApiData
+/** Istanza dell'API delle mod, `undefined` finché il primo caricamento non è finito. */
+let api: DeadlockApiData | undefined
+/** Primo caricamento delle mod: i gestori IPC che hanno bisogno dei dati lo attendono. */
+let apiReady: Promise<DeadlockApiData>
 
 /** Esegue `fn` e ne converte l'esito in un `IpcResult`, catturando gli errori. */
 async function toResult<T>(fn: () => T | Promise<T>): Promise<IpcResult<T>> {
@@ -22,10 +36,13 @@ async function toResult<T>(fn: () => T | Promise<T>): Promise<IpcResult<T>> {
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
-    width: 900,
-    height: 670,
+    width: 1200,
+    height: 800,
+    minWidth: 700,
+    minHeight: 500,
     show: false,
     autoHideMenuBar: true,
+    title: 'Deadlock Mod Manager',
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -38,7 +55,8 @@ function createWindow(): void {
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
+    // apre nel browser solo i link web
+    if (/^https?:\/\//.test(details.url)) shell.openExternal(details.url)
     return { action: 'deny' }
   })
 
@@ -51,12 +69,123 @@ function createWindow(): void {
   }
 }
 
+/** Mod installate con l'indicazione degli aggiornamenti disponibili. */
+async function installedWithInfo(): Promise<InstalledModInfo[]> {
+  return (await getInstalledMods()).map((entry) => {
+    // finché l'elenco non è caricato non si può sapere se ci sono aggiornamenti
+    if (!api) return { ...entry, available: true, updateAvailable: false }
+    const mod = api.getById(entry.id)
+    const updatedAt = mod?.filesUpdatedAt ?? mod?.remoteUpdatedAt
+    return {
+      ...entry,
+      available: !!mod,
+      updateAvailable: !!(updatedAt && entry.installedAt && updatedAt > entry.installedAt)
+    }
+  })
+}
+
+function registerIpc(): void {
+  ipcMain.handle('mods:categories', async () => (await apiReady).categories())
+  ipcMain.handle('mods:search', (_, filters?: ModFilters, page?: number) =>
+    toResult(async () => (await apiReady).pagination(page, filters))
+  )
+  ipcMain.handle(
+    'mods:status',
+    () => api?.status() ?? { lastError: undefined, lastUpdated: undefined, total: 0 }
+  )
+  ipcMain.handle('mods:refresh', () => toResult(async () => (await apiReady).refresh()))
+  ipcMain.handle('mods:downloads', (_, modId: string) =>
+    toResult(async () => {
+      const mod = (await apiReady).getById(modId)
+      if (!mod) throw new Error('Mod non trovata')
+      return ManageMods.getDownloads(mod.remoteId)
+    })
+  )
+  ipcMain.handle('mods:install', (event, modId: string, fileName?: string) =>
+    toResult(async () => {
+      const mod = (await apiReady).getById(modId)
+      if (!mod) throw new Error('Mod non trovata')
+      const gamePath = await requireGamePath()
+      const download = fileName
+        ? (await ManageMods.getDownloads(mod.remoteId)).find((d) => d.name === fileName)
+        : undefined
+      if (fileName && !download) throw new Error('File non trovato')
+      return ManageMods.installMod(mod, gamePath, download, (received, total) => {
+        const progress: InstallProgress = { modId, received, total }
+        if (!event.sender.isDestroyed()) event.sender.send('mods:progress', progress)
+      })
+    })
+  )
+  ipcMain.handle('mods:update', (event, modId: string) =>
+    toResult(async () => {
+      const mod = (await apiReady).getById(modId)
+      if (!mod) throw new Error('Mod non più disponibile')
+      const gamePath = await requireGamePath()
+      await ManageMods.uninstallMod(modId, gamePath)
+      return ManageMods.installMod(mod, gamePath, undefined, (received, total) => {
+        const progress: InstallProgress = { modId, received, total }
+        if (!event.sender.isDestroyed()) event.sender.send('mods:progress', progress)
+      })
+    })
+  )
+  ipcMain.handle('mods:uninstall', (_, modId: string) =>
+    toResult(async () => {
+      await ManageMods.uninstallMod(modId, await requireGamePath())
+      return null
+    })
+  )
+  ipcMain.handle('mods:setEnabled', (_, modId: string, enabled: boolean) =>
+    toResult(async () => ManageMods.setEnabled(modId, enabled, await requireGamePath()))
+  )
+  ipcMain.handle('mods:installed', () => getInstalledModIds())
+  ipcMain.handle('mods:installedInfo', () => installedWithInfo())
+
+  ipcMain.handle('settings:get', () => readSettings())
+  ipcMain.handle('settings:set', (_, patch: Partial<Settings>) =>
+    toResult(async () => {
+      if (patch.gamePath && !(await isValidGamePath(patch.gamePath)))
+        throw new Error('La cartella scelta non contiene Deadlock (manca game/citadel/gameinfo.gi)')
+      return writeSettings(patch)
+    })
+  )
+  ipcMain.handle('settings:detectGamePath', () =>
+    toResult(async () => {
+      const gamePath = await detectGamePath()
+      if (!gamePath) throw new Error('Deadlock non trovato nelle librerie di Steam')
+      return writeSettings({ gamePath })
+    })
+  )
+  ipcMain.handle('settings:browseGamePath', (event) =>
+    toResult(async () => {
+      const window = BrowserWindow.fromWebContents(event.sender)
+      const options: Electron.OpenDialogOptions = {
+        title: 'Seleziona la cartella di Deadlock',
+        properties: ['openDirectory']
+      }
+      const { canceled, filePaths } = window
+        ? await dialog.showOpenDialog(window, options)
+        : await dialog.showOpenDialog(options)
+      if (canceled || !filePaths[0]) return null
+      if (!(await isValidGamePath(filePaths[0])))
+        throw new Error('La cartella scelta non contiene Deadlock (manca game/citadel/gameinfo.gi)')
+      return writeSettings({ gamePath: filePaths[0] })
+    })
+  )
+  ipcMain.handle('settings:openAddons', () =>
+    toResult(async () => {
+      const error = await shell.openPath(join(await requireGamePath(), 'game', 'citadel', 'addons'))
+      if (error) throw new Error(error)
+      return null
+    })
+  )
+}
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(async () => {
   // Set app user model id for windows
-  electronApp.setAppUserModelId('com.electron')
+  electronApp.setAppUserModelId('com.deadlockmodmanager.app')
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
@@ -65,40 +194,24 @@ app.whenReady().then(async () => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  // Primo caricamento delle mod: se fallisce l'app non può funzionare
-  try {
-    api = await DeadlockApiData.create(10 * 60_000)
-  } catch (e) {
-    dialog.showErrorBox('Errore', `Impossibile caricare le mod: ${(e as Error).message}`)
-    app.quit()
-    return
+  // Primo caricamento delle mod, in parallelo all'apertura della finestra (l'API è lenta).
+  // Se fallisce l'app non può funzionare.
+  apiReady = DeadlockApiData.create(10 * 60_000)
+  apiReady.then(
+    (instance) => (api = instance),
+    (e) => {
+      dialog.showErrorBox('Errore', `Impossibile caricare le mod: ${(e as Error).message}`)
+      app.quit()
+    }
+  )
+
+  // Al primo avvio prova a trovare Deadlock da solo
+  if (!(await readSettings()).gamePath) {
+    const gamePath = await detectGamePath()
+    if (gamePath) await writeSettings({ gamePath })
   }
 
-  // Percorso tipico di Steam su Linux; renderlo un'impostazione in futuro
-  const gamePath = join(homedir(), '.local/share/Steam/steamapps/common/Deadlock')
-
-  // IPC test
-  ipcMain.on('ping', () => console.log('pong'))
-  ipcMain.handle('mods:categories', () => api.categories())
-  ipcMain.handle('mods:search', (_, filters?: ModFilters, page?: number) =>
-    toResult(() => api.pagination(page, filters))   // ora prima la pagina, poi i filtri
-  )
-  ipcMain.handle('mods:status', () => api.status())
-  ipcMain.handle('mods:install', (_, modId: string) =>
-    toResult(async () => {
-      const mod = api.getById(modId)
-      if (!mod) throw new Error('Mod non trovata')
-      return ManageMods.installMod(mod, gamePath)
-    })
-  )
-  ipcMain.handle('mods:uninstall', (_, modId: string) =>
-    toResult(async () => {
-      await ManageMods.uninstallMod(modId, gamePath)
-      return null
-    })
-  )
-  ipcMain.handle('mods:installed', () => getInstalledModIds())
-
+  registerIpc()
   createWindow()
 
   app.on('activate', function () {

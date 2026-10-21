@@ -1,5 +1,5 @@
-appId: com.electron.app
-productName: deadlock-manager
+appId: com.deadlockmodmanager.app
+productName: Deadlock Mod Manager
 directories:
   buildResources: build
 files:

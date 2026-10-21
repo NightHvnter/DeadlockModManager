@@ -1,17 +1,50 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import type { IpcResult, ModFilters, ModSearchResult } from '../mission/types'
+import type {
+  InstalledMod,
+  InstalledModInfo,
+  InstallProgress,
+  IpcResult,
+  ModDownload,
+  ModFilters,
+  ModSearchResult,
+  Settings,
+  Status
+} from '../mission/types'
 
 const api = {
   searchMods: (filters?: ModFilters, page?: number): Promise<IpcResult<ModSearchResult>> =>
     ipcRenderer.invoke('mods:search', filters, page),
-  getModsStatus: () => ipcRenderer.invoke('mods:status'),
-  installMod: (modId: string): Promise<IpcResult<string[]>> =>
-    ipcRenderer.invoke('mods:install', modId),
+  getModsStatus: (): Promise<Status> => ipcRenderer.invoke('mods:status'),
+  refreshMods: (): Promise<IpcResult<void>> => ipcRenderer.invoke('mods:refresh'),
+  getDownloads: (modId: string): Promise<IpcResult<ModDownload[]>> =>
+    ipcRenderer.invoke('mods:downloads', modId),
+  installMod: (modId: string, fileName?: string): Promise<IpcResult<string[]>> =>
+    ipcRenderer.invoke('mods:install', modId, fileName),
+  updateMod: (modId: string): Promise<IpcResult<string[]>> =>
+    ipcRenderer.invoke('mods:update', modId),
   uninstallMod: (modId: string): Promise<IpcResult<null>> =>
     ipcRenderer.invoke('mods:uninstall', modId),
+  setModEnabled: (modId: string, enabled: boolean): Promise<IpcResult<InstalledMod>> =>
+    ipcRenderer.invoke('mods:setEnabled', modId, enabled),
   getInstalledMods: (): Promise<string[]> => ipcRenderer.invoke('mods:installed'),
+  getInstalledModsInfo: (): Promise<InstalledModInfo[]> => ipcRenderer.invoke('mods:installedInfo'),
   getCategories: (): Promise<string[]> => ipcRenderer.invoke('mods:categories'),
+  /** Registra `listener` per l'avanzamento dei download; restituisce la funzione per rimuoverlo. */
+  onInstallProgress: (listener: (progress: InstallProgress) => void): (() => void) => {
+    const handler = (_: IpcRendererEvent, progress: InstallProgress): void => listener(progress)
+    ipcRenderer.on('mods:progress', handler)
+    return () => ipcRenderer.removeListener('mods:progress', handler)
+  },
+
+  getSettings: (): Promise<Settings> => ipcRenderer.invoke('settings:get'),
+  setSettings: (patch: Partial<Settings>): Promise<IpcResult<Settings>> =>
+    ipcRenderer.invoke('settings:set', patch),
+  detectGamePath: (): Promise<IpcResult<Settings>> => ipcRenderer.invoke('settings:detectGamePath'),
+  /** Apre la scelta della cartella; `data` è `null` se l'utente annulla. */
+  browseGamePath: (): Promise<IpcResult<Settings | null>> =>
+    ipcRenderer.invoke('settings:browseGamePath'),
+  openAddonsFolder: (): Promise<IpcResult<null>> => ipcRenderer.invoke('settings:openAddons')
 }
 
 export type Api = typeof api
