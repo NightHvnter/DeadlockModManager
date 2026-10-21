@@ -1,4 +1,5 @@
 import { ThemeProvider } from "./components/providers/ThemeProvider"
+import { Toaster } from '@/components/ui/sonner'
 import Router from "./router"
 
 function App(): React.JSX.Element {
@@ -6,6 +7,7 @@ function App(): React.JSX.Element {
     <>
       <ThemeProvider>
         <Router />
+        <Toaster />
       </ThemeProvider>
     </>
   )
