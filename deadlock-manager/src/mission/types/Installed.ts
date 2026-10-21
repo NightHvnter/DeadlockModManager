@@ -9,7 +9,7 @@ export interface InstalledMod {
   installedAt: string | null
   /** Nome del file scaricato. */
   fileName: string | null
-  /** Copia dei dati principali della mod, per mostrarla anche se sparisce dall'API. */
+  /** Copia dei dati principali della mod, per mostrarla anche se sparisce da GameBanana. */
   name: string
   author: string
   category: string
@@ -17,11 +17,11 @@ export interface InstalledMod {
   image: string | null
 }
 
-/** Mod installata con le informazioni ricavate dall'API. */
+/** Mod installata con le informazioni ricavate dal catalogo. */
 export interface InstalledModInfo extends InstalledMod {
   /** `true` se i file della mod sono stati aggiornati dopo l'installazione. */
   updateAvailable: boolean
-  /** `false` se la mod non compare più tra quelle dell'API. */
+  /** `false` se la mod non compare più nel catalogo di GameBanana. */
   available: boolean
 }
 

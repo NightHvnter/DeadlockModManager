@@ -12,8 +12,7 @@ import type { ReadableStream as WebStream } from 'node:stream/web'
 import { disabledDir, readManifest, writeManifest } from "./manifest"
 import { extractZip as extract} from "../func/extractZip"
 import { extractRar } from "../func/extractRar"
-
-const API = 'https://api.deadlockmods.app/api/v2'
+import { gameBanana, parseModId } from "../gamebanana"
 const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 /** Chiamata con i byte ricevuti e quelli totali (`0` se sconosciuti) durante il download. */
@@ -53,7 +52,7 @@ export class ManageMods {
     const installed: string[] = []
 
     try {
-      const file = download ?? (await this.getDownloads(mod.remoteId))[0]
+      const file = download ?? (await this.getDownloads(mod.id))[0]
       if (!file) throw new AppError('error.noDownloads')
 
       // 1. Download e verifica
@@ -133,11 +132,23 @@ export class ManageMods {
     }
   }
 
-  /** File scaricabili di una mod. L'API li indicizza per `remoteId`, non per `id`. */
-  public static async getDownloads(remoteId: string): Promise<ModDownload[]> {
-    const res = await fetch(`${API}/mods/${remoteId}/downloads`)
-    if (!res.ok) throw new AppError('error.api', { status: res.status })
-    return (await res.json()).downloads
+  /**
+   * File scaricabili di una mod, letti dalla sua pagina su GameBanana (dal più recente),
+   * esclusi quelli archiviati dall'autore.
+   */
+  public static async getDownloads(modId: string): Promise<ModDownload[]> {
+    const ref = parseModId(modId)
+    if (!ref) throw new AppError('error.modNotFound')
+    const profile = await gameBanana.profile(ref.type, ref.id)
+    return (profile._aFiles ?? [])
+      .filter((f) => !f._bIsArchived)
+      .sort((a, b) => b._tsDateAdded - a._tsDateAdded)
+      .map((f) => ({
+        url: f._sDownloadUrl,
+        size: f._nFilesize,
+        name: f._sFile,
+        md5Checksum: f._sMd5Checksum ?? null
+      }))
   }
 
   private static async downloadFile(

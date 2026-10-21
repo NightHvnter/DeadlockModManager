@@ -38,8 +38,13 @@ export default function SettingsSheet(): React.JSX.Element {
   const [refreshing, setRefreshing] = useState(false)
   const languageValue = settings?.language ?? SYSTEM_LANGUAGE
 
+  // con il pannello aperto lo stato si aggiorna ogni secondo, per seguire la sincronizzazione
   useEffect(() => {
-    if (sheetOpen) window.api.getModsStatus().then(setStatus)
+    if (!sheetOpen) return
+    const load = (): void => void window.api.getModsStatus().then(setStatus)
+    load()
+    const timer = setInterval(load, 1000)
+    return () => clearInterval(timer)
   }, [sheetOpen])
 
   async function refresh(): Promise<void> {
@@ -166,10 +171,22 @@ export default function SettingsSheet(): React.JSX.Element {
                 {status?.lastUpdated &&
                   t('settings.lastUpdated', { time: formatTime(status.lastUpdated) })}
               </p>
+              {status?.sync && (
+                <p className="text-sm text-muted-foreground">
+                  {status.sync.phase === 'index'
+                    ? t('settings.syncIndex', { done: status.sync.done, total: status.sync.total })
+                    : t('settings.syncCounts', { total: formatNumber(status.sync.total) })}
+                </p>
+              )}
               {status?.lastError && (
                 <p className="text-sm text-destructive">{status.lastError}</p>
               )}
-              <Button variant="outline" size="sm" disabled={refreshing} onClick={refresh}>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={refreshing || !!status?.sync}
+                onClick={refresh}
+              >
                 <RefreshCw className={refreshing ? 'size-4 animate-spin' : 'size-4'} />
                 {t('settings.refreshNow')}
               </Button>

@@ -2,7 +2,7 @@ import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
-import { DeadlockApiData } from '../mission/deadlock_api'
+import { GameBananaCatalog } from '../mission/gamebanana'
 import { ManageMods, getInstalledModIds, getInstalledMods } from '../mission/deadlock'
 import {
   detectGamePath,
@@ -20,10 +20,10 @@ import type {
 } from '../mission/types'
 import { AppError, describeError, detectLanguage, translate, type Language } from '../mission/i18n'
 
-/** Istanza dell'API delle mod, `undefined` finché il primo caricamento non è finito. */
-let api: DeadlockApiData | undefined
+/** Catalogo delle mod di GameBanana, `undefined` finché il primo caricamento non è finito. */
+let catalog: GameBananaCatalog | undefined
 /** Primo caricamento delle mod: i gestori IPC che hanno bisogno dei dati lo attendono. */
-let apiReady: Promise<DeadlockApiData>
+let catalogReady: Promise<GameBananaCatalog>
 /** Lingua usata per i messaggi del processo main (errori e finestre di dialogo). */
 let language: Language = 'en'
 
@@ -80,8 +80,8 @@ function createWindow(): void {
 async function installedWithInfo(): Promise<InstalledModInfo[]> {
   return (await getInstalledMods()).map((entry) => {
     // finché l'elenco non è caricato non si può sapere se ci sono aggiornamenti
-    if (!api) return { ...entry, available: true, updateAvailable: false }
-    const mod = api.getById(entry.id)
+    if (!catalog) return { ...entry, available: true, updateAvailable: false }
+    const mod = catalog.getById(entry.id)
     const updatedAt = mod?.filesUpdatedAt ?? mod?.remoteUpdatedAt
     return {
       ...entry,
@@ -92,29 +92,29 @@ async function installedWithInfo(): Promise<InstalledModInfo[]> {
 }
 
 function registerIpc(): void {
-  ipcMain.handle('mods:categories', async () => (await apiReady).categories())
+  ipcMain.handle('mods:categories', async () => (await catalogReady).categories())
   ipcMain.handle('mods:search', (_, filters?: ModFilters, page?: number) =>
-    toResult(async () => (await apiReady).pagination(page, filters))
+    toResult(async () => (await catalogReady).pagination(page, filters))
   )
   ipcMain.handle(
     'mods:status',
-    () => api?.status(language) ?? { lastError: undefined, lastUpdated: undefined, total: 0 }
+    () => catalog?.status(language) ?? { lastError: undefined, lastUpdated: undefined, total: 0 }
   )
-  ipcMain.handle('mods:refresh', () => toResult(async () => (await apiReady).refresh()))
+  ipcMain.handle('mods:refresh', () => toResult(async () => (await catalogReady).refresh()))
   ipcMain.handle('mods:downloads', (_, modId: string) =>
     toResult(async () => {
-      const mod = (await apiReady).getById(modId)
+      const mod = (await catalogReady).getById(modId)
       if (!mod) throw new AppError('error.modNotFound')
-      return ManageMods.getDownloads(mod.remoteId)
+      return ManageMods.getDownloads(mod.id)
     })
   )
   ipcMain.handle('mods:install', (event, modId: string, fileName?: string) =>
     toResult(async () => {
-      const mod = (await apiReady).getById(modId)
+      const mod = (await catalogReady).getById(modId)
       if (!mod) throw new AppError('error.modNotFound')
       const gamePath = await requireGamePath()
       const download = fileName
-        ? (await ManageMods.getDownloads(mod.remoteId)).find((d) => d.name === fileName)
+        ? (await ManageMods.getDownloads(mod.id)).find((d) => d.name === fileName)
         : undefined
       if (fileName && !download) throw new AppError('error.fileNotFound')
       return ManageMods.installMod(mod, gamePath, download, (received, total) => {
@@ -125,7 +125,7 @@ function registerIpc(): void {
   )
   ipcMain.handle('mods:update', (event, modId: string) =>
     toResult(async () => {
-      const mod = (await apiReady).getById(modId)
+      const mod = (await catalogReady).getById(modId)
       if (!mod) throw new AppError('error.modUnavailable')
       const gamePath = await requireGamePath()
       await ManageMods.uninstallMod(modId, gamePath)
@@ -205,15 +205,20 @@ app.whenReady().then(async () => {
 
   language = resolveLanguage(await readSettings())
 
-  // Primo caricamento delle mod, in parallelo all'apertura della finestra (l'API è lenta).
-  // Con una lista salvata è immediato e l'aggiornamento avviene in background; quando la
-  // lista nuova è scaricata del tutto il renderer viene avvisato con `mods:updated`.
-  // Se fallisce senza lista salvata l'app non può funzionare.
-  apiReady = DeadlockApiData.create(60 * 60_000, join(app.getPath('userData'), 'mods-cache.json'), () =>
-    BrowserWindow.getAllWindows().forEach((w) => w.webContents.send('mods:updated'))
+  // Primo caricamento delle mod, in parallelo all'apertura della finestra.
+  // Il catalogo arriva da GameBanana: con un catalogo salvato è immediato, al primo avvio
+  // basta la prima pagina; il resto si sincronizza in background e, a sincronizzazione
+  // finita, il renderer viene avvisato con `mods:updated`. I log `[gamebanana]` nel
+  // terminale di `npm run dev` mostrano tempi e numero di richieste.
+  // Se fallisce senza catalogo salvato l'app non può funzionare.
+  catalogReady = GameBananaCatalog.create(
+    60 * 60_000,
+    join(app.getPath('userData'), 'gamebanana-catalog.json'),
+    () => BrowserWindow.getAllWindows().forEach((w) => w.webContents.send('mods:updated')),
+    (message) => console.log(`[gamebanana] ${message}`)
   )
-  apiReady.then(
-    (instance) => (api = instance),
+  catalogReady.then(
+    (instance) => (catalog = instance),
     (e) => {
       dialog.showErrorBox(
         translate(language, 'dialog.errorTitle'),
@@ -249,4 +254,4 @@ app.on('window-all-closed', () => {
 })
 
 // Ferma l'aggiornamento automatico della cache alla chiusura
-app.on('before-quit', () => api?.stop())
+app.on('before-quit', () => catalog?.stop())

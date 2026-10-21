@@ -21,6 +21,8 @@ export const en: Messages = {
   'settings.modCount': '{count} mods',
   'settings.lastUpdated': ', updated at {time}',
   'settings.refreshNow': 'Refresh now',
+  'settings.syncIndex': 'Syncing with GameBanana: page {done} of {total}',
+  'settings.syncCounts': 'Reading downloads and likes for {total} mods...',
   'settings.listUpdated': 'Mod list updated',
   'settings.listAlreadyUpdated': 'The list was already up to date',
   'settings.gameFound': 'Deadlock found',
@@ -117,6 +119,5 @@ export const en: Messages = {
   'error.searchPaths': 'SearchPaths not found in gameinfo.gi',
   'error.api': 'API error ({status})',
   'error.downloadFailed': 'Download failed ({status})',
-  'error.modListFailed': 'Unable to download mods from the API ({status})',
   'error.invalidPath': 'Invalid path in the archive: {path}'
 }

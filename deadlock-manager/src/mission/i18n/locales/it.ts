@@ -20,6 +20,8 @@ export const it = {
   'settings.modCount': '{count} mod',
   'settings.lastUpdated': ', aggiornato alle {time}',
   'settings.refreshNow': 'Aggiorna ora',
+  'settings.syncIndex': 'Sincronizzazione con GameBanana: pagina {done} di {total}',
+  'settings.syncCounts': 'Lettura di download e mi piace di {total} mod...',
   'settings.listUpdated': 'Elenco delle mod aggiornato',
   'settings.listAlreadyUpdated': "L'elenco era già aggiornato",
   'settings.gameFound': 'Deadlock trovato',
@@ -117,7 +119,6 @@ export const it = {
   'error.searchPaths': 'SearchPaths non trovato in gameinfo.gi',
   'error.api': "Errore dell'API ({status})",
   'error.downloadFailed': 'Download fallito ({status})',
-  'error.modListFailed': "Impossibile scaricare le mod dall'API ({status})",
   'error.invalidPath': "Percorso non valido nell'archivio: {path}"
 }
 

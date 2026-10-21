@@ -1,1 +1,0 @@
-export { DeadlockApiData } from "./DeadlockApiData";
