@@ -10,7 +10,8 @@ const api = {
     ipcRenderer.invoke('mods:install', modId),
   uninstallMod: (modId: string): Promise<IpcResult<null>> =>
     ipcRenderer.invoke('mods:uninstall', modId),
-  getInstalledMods: (): Promise<string[]> => ipcRenderer.invoke('mods:installed')
+  getInstalledMods: (): Promise<string[]> => ipcRenderer.invoke('mods:installed'),
+  getCategories: (): Promise<string[]> => ipcRenderer.invoke('mods:categories'),
 }
 
 export type Api = typeof api

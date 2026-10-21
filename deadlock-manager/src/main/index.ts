@@ -79,7 +79,7 @@ app.whenReady().then(async () => {
 
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
-  
+  ipcMain.handle('mods:categories', () => api.categories())
   ipcMain.handle('mods:search', (_, filters?: ModFilters, page?: number) =>
     toResult(() => api.pagination(page, filters))   // ora prima la pagina, poi i filtri
   )
