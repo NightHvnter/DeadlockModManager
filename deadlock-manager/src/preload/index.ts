@@ -16,7 +16,14 @@ const api = {
   searchMods: (filters?: ModFilters, page?: number): Promise<IpcResult<ModSearchResult>> =>
     ipcRenderer.invoke('mods:search', filters, page),
   getModsStatus: (): Promise<Status> => ipcRenderer.invoke('mods:status'),
-  refreshMods: (): Promise<IpcResult<void>> => ipcRenderer.invoke('mods:refresh'),
+  /** Riscarica la lista; `data` è `true` se è cambiata. */
+  refreshMods: (): Promise<IpcResult<boolean>> => ipcRenderer.invoke('mods:refresh'),
+  /** Registra `listener` per quando la lista delle mod è stata sostituita; restituisce la funzione per rimuoverlo. */
+  onModsUpdated: (listener: () => void): (() => void) => {
+    const handler = (): void => listener()
+    ipcRenderer.on('mods:updated', handler)
+    return () => ipcRenderer.removeListener('mods:updated', handler)
+  },
   getDownloads: (modId: string): Promise<IpcResult<ModDownload[]>> =>
     ipcRenderer.invoke('mods:downloads', modId),
   installMod: (modId: string, fileName?: string): Promise<IpcResult<string[]>> =>

@@ -23,6 +23,16 @@ App desktop (Electron + React + TypeScript) per cercare, installare e gestire le
 4. I file installati sono registrati in `installed.json` nella cartella dati dell'app.
    Le mod disattivate vengono spostate in `disabled/<id>` nella stessa cartella.
 
+## Elenco delle mod
+
+L'API restituisce sempre l'elenco completo (circa 10.000 mod, oltre 10 MB) e non ha paginazione.
+Per questo l'elenco viene salvato in `mods-cache.json` insieme al suo ETag:
+
+- solo al primo avvio l'app aspetta il download completo;
+- agli avvii successivi mostra subito l'elenco salvato e lo aggiorna in background ogni ora,
+  con `If-None-Match` (se non è cambiato l'API risponde `304` senza riscaricarlo);
+- l'interfaccia viene aggiornata solo quando il nuovo elenco è stato scaricato del tutto.
+
 Le impostazioni sono in `settings.json` nella cartella dati dell'app
 (`%APPDATA%/deadlock-manager` su Windows).
 

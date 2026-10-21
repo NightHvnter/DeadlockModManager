@@ -22,6 +22,12 @@ export default function Installed(): React.JSX.Element {
     window.api.getInstalledModsInfo().then(setMods)
   }, [version])
 
+  // e quando arriva una lista nuova dall'API, che può segnalare aggiornamenti
+  useEffect(
+    () => window.api.onModsUpdated(() => window.api.getInstalledModsInfo().then(setMods)),
+    []
+  )
+
   async function openAddons(): Promise<void> {
     const result = await window.api.openAddonsFolder()
     if (!result.ok) toast.error(result.error)

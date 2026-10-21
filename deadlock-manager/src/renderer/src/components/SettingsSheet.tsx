@@ -39,7 +39,8 @@ export default function SettingsSheet(): React.JSX.Element {
     setRefreshing(true)
     const result = await window.api.refreshMods()
     setRefreshing(false)
-    if (result.ok) toast.success('Elenco delle mod aggiornato')
+    if (result.ok)
+      toast.success(result.data ? 'Elenco delle mod aggiornato' : "L'elenco era già aggiornato")
     else toast.error(result.error)
     setStatus(await window.api.getModsStatus())
   }

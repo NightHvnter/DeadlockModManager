@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -53,21 +53,37 @@ export default function Home(): React.JSX.Element {
   const [categories, setCategories] = useState<string[]>([])
   const [selected, setSelected] = useState<Mod | null>(null)
 
+  /** Cambia quando il processo main ha sostituito la lista delle mod con una nuova. */
+  const [listVersion, setListVersion] = useState(0)
+  /** `true` se la prossima ricerca è dovuta a un aggiornamento in background: niente spinner. */
+  const silent = useRef(false)
+
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const includeNSFW = settings?.includeNSFW ?? false
+
+  useEffect(
+    () =>
+      window.api.onModsUpdated(() => {
+        silent.current = true
+        setListVersion((v) => v + 1)
+      }),
+    []
+  )
 
   // Le categorie che coincidono con un eroe sono già coperte dal filtro per eroe
   useEffect(() => {
     window.api
       .getCategories()
       .then((all) => setCategories(all.filter((c) => !HEROES.includes(c as Hero))))
-  }, [])
+  }, [listVersion])
 
   // Ricerca, con una breve attesa mentre l'utente scrive
   useEffect(() => {
     let cancelled = false
     const timer = setTimeout(async () => {
-      setLoading(true)
+      // dopo un aggiornamento in background i risultati vengono solo sostituiti
+      if (!silent.current) setLoading(true)
+      silent.current = false
       const [sortBy, sortOrder] = sort.split(':') as [ModSortField, 'asc' | 'desc']
       const filters: ModFilters = {
         search,
@@ -93,7 +109,7 @@ export default function Home(): React.JSX.Element {
       cancelled = true
       clearTimeout(timer)
     }
-  }, [search, category, hero, type, sort, page, includeNSFW])
+  }, [search, category, hero, type, sort, page, includeNSFW, listVersion])
 
   /** Cambia pagina tornando in cima all'elenco. */
   function goTo(p: number): void {

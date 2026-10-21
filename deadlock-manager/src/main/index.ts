@@ -195,8 +195,12 @@ app.whenReady().then(async () => {
   })
 
   // Primo caricamento delle mod, in parallelo all'apertura della finestra (l'API è lenta).
-  // Se fallisce l'app non può funzionare.
-  apiReady = DeadlockApiData.create(10 * 60_000)
+  // Con una lista salvata è immediato e l'aggiornamento avviene in background; quando la
+  // lista nuova è scaricata del tutto il renderer viene avvisato con `mods:updated`.
+  // Se fallisce senza lista salvata l'app non può funzionare.
+  apiReady = DeadlockApiData.create(60 * 60_000, join(app.getPath('userData'), 'mods-cache.json'), () =>
+    BrowserWindow.getAllWindows().forEach((w) => w.webContents.send('mods:updated'))
+  )
   apiReady.then(
     (instance) => (api = instance),
     (e) => {
