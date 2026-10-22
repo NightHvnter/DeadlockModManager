@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/sheet'
 import { useI18n } from '@/hooks/useI18n'
 import { useSettings } from '@/hooks/useSettings'
-import { useTheme, THEME_IDS, type Theme } from './providers/ThemeProvider'
+import { useTheme, THEME_IDS, type Theme } from '@/hooks/useTheme'
 import { LANGUAGE_IDS, LANGUAGES, type Language } from '../../../mission/i18n'
 import type { Status } from '../../../mission/types'
 
