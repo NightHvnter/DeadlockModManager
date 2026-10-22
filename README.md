@@ -22,6 +22,8 @@ the app → **Open**).
 - **Installed** page: enable/disable, update and uninstall mods, and change their load order
 - **Play** button that makes sure mods are still active after a game update and launches Deadlock through Steam
 - Automatic detection of the Deadlock folder in the Steam libraries (Windows, Linux, macOS)
+- **Colors** page to change the colors of Deadlock's own interface (text, enemies, allies, health
+  bar, souls, ...) without installing other mods, with ready-made presets such as colorblind
 - Light, dark, system, ocean and forest themes
 - Interface in Italian, English, Spanish, French and German (the system language by default)
 
@@ -61,6 +63,24 @@ index. From the **Installed** page → **Load order** you can reorder the enable
 them or with the arrows): when you save, the indices are reassigned in the chosen order, `pak01`
 to the mod at the top. Files in `addons` that were not installed by the app are left untouched.
 Disabled mods are not listed and go to the bottom when they are enabled again.
+
+## Interface colors
+
+Deadlock's interface is drawn with Panorama, whose styles are compiled `.vcss_c` files in the
+game's `pak01_dir.vpk` that still contain the CSS as plain text. The **Colors** page builds its own
+VPK in `addons` (code in `src/mission/deadlock/interfaceColors.ts` and `vpk.ts`, no Valve tools
+needed):
+
+1. Each color is defined in `src/mission/types/InterfaceColors.ts` by the `@define` variables, hex
+   values and rules it changes in the styles.
+2. Every style is read from the version the game would load: a lower-priority mod that contains it,
+   otherwise the game's own. Styles that a higher-priority mod overrides are skipped and reported.
+3. The CSS is rewritten with exactly the same length (characters added by a rule are paid for by
+   removing spaces after colons), so the size and offsets of the compiled resource never change.
+4. The styles are packed in a single-file `pakNN_dir.vpk`, whose name is kept in
+   `interface-colors.json`; it is removed when all colors are back to the originals.
+
+The VPK is rebuilt every time you press **Play**, so the colors survive game updates.
 
 ## Mod catalog
 

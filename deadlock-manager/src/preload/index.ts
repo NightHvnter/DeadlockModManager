@@ -5,6 +5,8 @@ import type {
   InstalledMod,
   InstalledModInfo,
   InstallProgress,
+  InterfaceColors,
+  InterfaceColorsResult,
   IpcResult,
   ModChangelogEntry,
   ModDownload,
@@ -60,6 +62,10 @@ const api = {
   browseGamePath: (): Promise<IpcResult<Settings | null>> =>
     ipcRenderer.invoke('settings:browseGamePath'),
   openAddonsFolder: (): Promise<IpcResult<null>> => ipcRenderer.invoke('settings:openAddons'),
+
+  /** Salva i colori dell'interfaccia e rigenera il loro VPK in `addons` (lo toglie se sono tutti originali). */
+  applyInterfaceColors: (colors: InterfaceColors): Promise<IpcResult<InterfaceColorsResult>> =>
+    ipcRenderer.invoke('colors:apply', colors),
 
   /** Controlla `gameinfo.gi` (e lo ripara se la riparazione automatica è attiva). */
   checkGameinfo: (): Promise<IpcResult<GameinfoStatus>> => ipcRenderer.invoke('game:checkGameinfo'),

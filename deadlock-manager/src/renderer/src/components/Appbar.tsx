@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router'
-import { Download, LayoutGrid, Package, Play } from 'lucide-react'
+import { Download, LayoutGrid, Package, Palette, Play } from 'lucide-react'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { useGameinfo } from '@/hooks/useGameinfo'
 import { useI18n } from '@/hooks/useI18n'
@@ -10,7 +10,8 @@ import type { MessageKey } from '../../../mission/i18n'
 /** Voci di navigazione dell'app. */
 const links: { to: string; label: MessageKey; icon: typeof LayoutGrid }[] = [
   { to: '/', label: 'nav.mods', icon: LayoutGrid },
-  { to: '/installed', label: 'nav.installed', icon: Download }
+  { to: '/installed', label: 'nav.installed', icon: Download },
+  { to: '/colors', label: 'nav.colors', icon: Palette }
 ]
 
 /** Barra di navigazione fissa in alto, con il titolo, i link alle pagine e il cambio tema. */

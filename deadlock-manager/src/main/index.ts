@@ -15,6 +15,7 @@ import type {
   GameinfoStatus,
   InstalledModInfo,
   InstallProgress,
+  InterfaceColors,
   IpcResult,
   ModFilters,
   Settings
@@ -196,12 +197,27 @@ function registerIpc(): void {
     })
   )
 
+  ipcMain.handle('colors:apply', (_, colors: InterfaceColors) =>
+    toResult(async () => {
+      const gamePath = await requireGamePath()
+      const result = await ManageMods.applyInterfaceColors(gamePath, colors)
+      await writeSettings({ interfaceColors: colors })
+      return result
+    })
+  )
+
   // gameinfo.gi viene controllato solo all'avvio dell'app (dal renderer), con "Gioca" e con
   // "Ripara": mai in background mentre l'app è aperta
   ipcMain.handle('game:checkGameinfo', () => toResult(() => checkGameinfo()))
   ipcMain.handle('game:repairGameinfo', () => toResult(() => checkGameinfo(true)))
   ipcMain.handle('game:play', () =>
     toResult(async () => {
+      // i colori si rigenerano dagli stili attuali: un aggiornamento del gioco può averli cambiati
+      const settings = await readSettings()
+      if (settings.gamePath && Object.keys(settings.interfaceColors).length > 0)
+        await ManageMods.applyInterfaceColors(settings.gamePath, settings.interfaceColors).catch(
+          (e) => console.error('[colors]', e)
+        )
       // un errore nel controllo non deve impedire di giocare: si avvia comunque e lo si segnala
       const status = await checkGameinfo().catch((): GameinfoStatus => 'needsRepair')
       await shell.openExternal(`steam://rungameid/${DEADLOCK_STEAM_APP_ID}`)
