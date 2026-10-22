@@ -21,6 +21,8 @@ const FULL_SYNC_INTERVAL_MS = 7 * 24 * 60 * 60_000
 const MIN_COVERAGE = 0.95
 /** Oltre questo numero di mod non più viste non si verifica una per una: si tengono tutte. */
 const MAX_UNSEEN_CHECKS = 400
+/** Durante la prima sincronizzazione, l'interfaccia viene aggiornata ogni tante mod arrivate. */
+const PROGRESSIVE_UPDATE_EVERY = 100
 
 /** Mod del catalogo; `hydrated` è `false` finché mancano download, descrizione e file. */
 interface Entry {
@@ -194,16 +196,26 @@ export class GameBananaCatalog {
   /**
    * Legge tutto l'indice dalla mod più vecchia, idratando ogni pagina, e poi sostituisce il
    * catalogo in un colpo solo. Le mod non più viste vengono tolte solo se GameBanana conferma
-   * che non esistono più.
+   * che non esistono più. Alla prima sincronizzazione le mod vengono anche pubblicate man mano,
+   * avvisando l'interfaccia ogni `PROGRESSIVE_UPDATE_EVERY` mod.
    */
   private async fullSync(): Promise<number> {
+    // Alla prima sincronizzazione il catalogo ha solo le prime pagine: invece di far aspettare
+    // l'utente fino alla fine, le mod vengono mostrate man mano che arrivano.
+    const progressive = this.lastFullSyncAt === 0
     const firsts = await Promise.all(SUBMISSION_TYPES.map((t) => gameBanana.indexPage(t, 1, false)))
     const expected = firsts.reduce((n, p) => n + p._aMetadata._nRecordCount, 0)
     const pagesPerType = firsts.map((p) => Math.ceil(p._aMetadata._nRecordCount / INDEX_PAGE_SIZE))
-    this.progress = { done: 0, total: pagesPerType.reduce((a, b) => a + b, 0) }
+    this.progress = {
+      done: 0,
+      total: pagesPerType.reduce((a, b) => a + b, 0),
+      loaded: 0,
+      expected
+    }
 
     const next = new Map<string, Entry>()
     const highWaterMarks: Record<SubmissionType, number> = { Mod: 0, Sound: 0 }
+    let sinceLastUpdate = 0
     await Promise.all(
       SUBMISSION_TYPES.flatMap((type, i) =>
         Array.from({ length: pagesPerType[i] }, (_, p) => p + 1).map(async (page) => {
@@ -211,11 +223,20 @@ export class GameBananaCatalog {
             page === 1
               ? firsts[i]._aRecords
               : (await gameBanana.indexPage(type, page, false))._aRecords
-          for (const entry of await this.hydrateRecords(type, records))
+          const hydrated = await this.hydrateRecords(type, records)
+          for (const entry of hydrated) {
             next.set(entry.mod.id, entry)
+            if (progressive) this.entries.set(entry.mod.id, entry)
+          }
           for (const r of records)
             highWaterMarks[type] = Math.max(highWaterMarks[type], r._tsDateModified)
           this.progress!.done++
+          this.progress!.loaded = next.size
+          sinceLastUpdate += hydrated.length
+          if (progressive && sinceLastUpdate >= PROGRESSIVE_UPDATE_EVERY) {
+            sinceLastUpdate = 0
+            this.onUpdate?.()
+          }
         })
       )
     )

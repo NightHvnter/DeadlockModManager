@@ -1,7 +1,11 @@
-/** Avanzamento di una sincronizzazione completa del catalogo: pagine dell'indice lette e idratate. */
+/** Avanzamento di una sincronizzazione completa del catalogo. */
 export interface SyncProgress {
+  /** Pagine dell'indice lette e idratate. */
   done: number
   total: number
+  /** Mod lette finora e mod dichiarate da GameBanana. */
+  loaded: number
+  expected: number
 }
 
 export type Status = {

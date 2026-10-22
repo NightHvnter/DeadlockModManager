@@ -43,6 +43,7 @@ export const en: Messages = {
   'home.typeAudio': 'Audio',
   'home.typeMap': 'Maps',
   'home.loading': 'Loading...',
+  'home.syncing': 'Loading the catalog from GameBanana: {loaded} of {expected} mods',
   'home.empty': 'No mods match the filters.',
   'home.found': '{count} mods found',
   'home.previous': 'Previous',

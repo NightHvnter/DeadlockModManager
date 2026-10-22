@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/select'
 import ModCard from '@/components/ModCard'
 import ModDetailsDialog from '@/components/ModDetailsDialog'
+import CatalogSyncBanner from '@/components/CatalogSyncBanner'
 import { useI18n } from '@/hooks/useI18n'
 import { useSettings } from '@/hooks/useSettings'
 import type { MessageKey } from '../../../mission/i18n'
@@ -131,6 +132,7 @@ export default function Home(): React.JSX.Element {
 
   return (
     <div className="space-y-4">
+      <CatalogSyncBanner />
       <div className="flex flex-wrap gap-2">
         <Input
           className="max-w-sm"

@@ -42,6 +42,7 @@ export const it = {
   'home.typeAudio': 'Audio',
   'home.typeMap': 'Mappe',
   'home.loading': 'Caricamento...',
+  'home.syncing': 'Caricamento del catalogo da GameBanana: {loaded} di {expected} mod',
   'home.empty': 'Nessuna mod corrisponde ai filtri.',
   'home.found': '{count} mod trovate',
   'home.previous': 'Precedente',
