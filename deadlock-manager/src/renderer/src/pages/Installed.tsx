@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { toast } from 'sonner'
-import { FolderOpen, ListOrdered } from 'lucide-react'
+import { FolderOpen, Link2, ListOrdered } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -9,6 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import Spinner from '@/components/Spinner'
 import LoadOrderDialog from '@/components/LoadOrderDialog'
+import LinkModDialog from '@/components/LinkModDialog'
 import { useI18n } from '@/hooks/useI18n'
 import { useModActions } from '@/hooks/useModActions'
 import type { InstalledModInfo } from '../../../mission/types'
@@ -20,6 +21,7 @@ export default function Installed(): React.JSX.Element {
   const [search, setSearch] = useState('')
   const { t, formatDate } = useI18n()
   const [loadOrderOpen, setLoadOrderOpen] = useState(false)
+  const [linking, setLinking] = useState<InstalledModInfo | null>(null)
 
   // ricarica l'elenco a ogni installazione, disinstallazione o cambio di stato
   useEffect(() => {
@@ -82,6 +84,7 @@ export default function Installed(): React.JSX.Element {
       </div>
 
       <LoadOrderDialog open={loadOrderOpen} onOpenChange={setLoadOrderOpen} />
+      <LinkModDialog mod={linking} onOpenChange={(open) => !open && setLinking(null)} />
 
       {mods.length === 0 ? (
         <div className="flex flex-col items-center gap-4 py-20 text-muted-foreground">
@@ -113,11 +116,16 @@ export default function Installed(): React.JSX.Element {
                     {mod.name}
                   </div>
                   <div className="text-sm text-muted-foreground">
-                    {mod.author}
+                    {mod.external ? mod.files.join(', ') : mod.author}
                     {mod.installedAt &&
                       ` · ${t('installed.installedOn', { date: formatDate(mod.installedAt) })}`}
                   </div>
                   <div className="flex flex-wrap gap-1">
+                    {mod.external && (
+                      <Badge variant="secondary" title={t('installed.externalTooltip')}>
+                        {t('installed.external')}
+                      </Badge>
+                    )}
                     {mod.category && <Badge variant="secondary">{mod.category}</Badge>}
                     {mod.hero && <Badge variant="outline">{mod.hero}</Badge>}
                     {!mod.enabled && <Badge variant="outline">{t('installed.disabled')}</Badge>}
@@ -137,6 +145,18 @@ export default function Installed(): React.JSX.Element {
                   {t('installed.enabled')}
                 </label>
 
+                {mod.external && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    title={t('link.tooltip')}
+                    disabled={busy}
+                    onClick={() => setLinking(mod)}
+                  >
+                    <Link2 className="size-4" />
+                    {t('link.button')}
+                  </Button>
+                )}
                 {mod.updateAvailable && (
                   <Button size="sm" disabled={busy} onClick={() => update(mod.id)}>
                     {busy && p !== undefined ? `${Math.round(p * 100)}%` : t('installed.update')}

@@ -70,7 +70,9 @@ export function ModActionsProvider({ children }: { children: React.ReactNode }):
         modId,
         () => window.api.setModEnabled(modId, enabled),
         t(enabled ? 'mod.enabled' : 'mod.disabled')
-      )
+      ),
+    link: (localId: string, modId: string) =>
+      run(localId, () => window.api.linkMod(localId, modId), t('link.done'))
   }
 
   return <ModActionsContext.Provider value={value}>{children}</ModActionsContext.Provider>

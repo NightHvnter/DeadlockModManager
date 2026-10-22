@@ -40,6 +40,9 @@ const api = {
     ipcRenderer.invoke('mods:uninstall', modId),
   setModEnabled: (modId: string, enabled: boolean): Promise<IpcResult<InstalledMod>> =>
     ipcRenderer.invoke('mods:setEnabled', modId, enabled),
+  /** Collega la mod esterna `localId` alla mod di GameBanana `modId`, di cui prende i dati. */
+  linkMod: (localId: string, modId: string): Promise<IpcResult<InstalledMod>> =>
+    ipcRenderer.invoke('mods:link', localId, modId),
   getInstalledMods: (): Promise<string[]> => ipcRenderer.invoke('mods:installed'),
   getInstalledModsInfo: (): Promise<InstalledModInfo[]> => ipcRenderer.invoke('mods:installedInfo'),
   /** Mod attive dalla priorità più alta (`pak01`) alla più bassa. */

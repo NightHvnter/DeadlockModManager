@@ -19,6 +19,7 @@ import {
   readFile,
   rename,
   rm,
+  stat,
   writeFile
 } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -38,10 +39,14 @@ import {
   writeColorsState
 } from './interfaceColors'
 import { buildVpk } from './vpk'
+import { guessExternalInfo, readDmmManifest } from './external'
 const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 /** Chiamata con i byte ricevuti e quelli totali (`0` se sconosciuti) durante il download. */
 export type ProgressCallback = (received: number, total: number) => void
+
+/** Mod del catalogo con l'id numerico di GameBanana `remoteId` (es. `"623518"`), se c'è. */
+export type ExternalLookup = (remoteId: string) => Mod | undefined
 
 export class ManageMods {
   /** Coda delle operazioni: due installazioni insieme potrebbero scegliere lo stesso `pakNN`. */
@@ -252,6 +257,142 @@ export class ManageMods {
   }
 
   /**
+   * Aggiunge al manifest come mod esterne (`external: true`) i gruppi `pakNN_*.vpk` di `addons`
+   * che l'app non conosce, così si possono vedere, disattivare, riordinare e disinstallare come
+   * le altre. Il nome viene ricavato dal contenuto del VPK; se il Deadlock Mod Manager ufficiale
+   * ha lasciato in `addons/.dmm.json` la mod di GameBanana da cui arriva il file e `lookup` la
+   * trova nel catalogo, la mod esterna viene collegata a quella (vedi `linkMod`). Toglie le mod
+   * esterne attive i cui file non ci sono più. Il VPK dei colori e le parti numerate senza
+   * `_dir.vpk` vengono ignorati.
+   * @param lookup Mod del catalogo con quell'id numerico di GameBanana, se c'è
+   */
+  public static syncExternal(gamePath: string, lookup: ExternalLookup): Promise<void> {
+    return this.exclusive(() => this.doSyncExternal(gamePath, lookup))
+  }
+
+  private static async doSyncExternal(gamePath: string, lookup?: ExternalLookup): Promise<void> {
+    const addons = join(gamePath, 'game', 'citadel', 'addons')
+    const present = await readdir(addons).catch((): string[] => [])
+    const manifest = await readManifest()
+    const colorsFile = (await readColorsState()).file
+    let changed = false
+
+    for (const [id, entry] of Object.entries(manifest)) {
+      if (entry.external && entry.enabled && !entry.files.some((f) => present.includes(f))) {
+        delete manifest[id]
+        changed = true
+      }
+    }
+
+    const known = new Set(
+      Object.values(manifest)
+        .filter((e) => e.enabled)
+        .flatMap((e) => e.files)
+    )
+    if (colorsFile) known.add(colorsFile)
+    const groups = new Map<string, string[]>()
+    for (const f of present) {
+      const prefix = /^(pak\d{2})_(?:dir|\d{3})\.vpk$/.exec(f)?.[1]
+      if (!prefix || known.has(f)) continue
+      groups.set(prefix, [...(groups.get(prefix) ?? []), f])
+    }
+
+    for (const [prefix, files] of [...groups].sort(([a], [b]) => a.localeCompare(b))) {
+      const dir = `${prefix}_dir.vpk`
+      if (!files.includes(dir)) continue
+      let id = `Local-${prefix}`
+      for (let n = 2; manifest[id]; n++) id = `Local-${prefix}-${n}`
+      const { mtime } = await stat(join(addons, dir))
+      manifest[id] = {
+        id,
+        files: files.sort(),
+        enabled: true,
+        installedAt: mtime.toISOString(),
+        fileName: dir,
+        name: dir,
+        author: '',
+        category: '',
+        hero: null,
+        image: null,
+        external: true
+      }
+      changed = true
+    }
+
+    // nome dal contenuto per le mod esterne ancora senza categoria (anche quelle trovate dalle
+    // versioni precedenti dell'app, che usavano il nome del file)
+    for (const entry of Object.values(manifest)) {
+      if (!entry.external || !entry.enabled || entry.category) continue
+      const dir = entry.files.find((f) => f.endsWith('_dir.vpk'))
+      const info = dir && (await guessExternalInfo(join(addons, dir)))
+      if (!info) continue
+      Object.assign(entry, info)
+      changed = true
+    }
+
+    if (lookup) {
+      const dmm = await readDmmManifest(addons)
+      for (const entry of Object.values(manifest)) {
+        if (!entry.external || !entry.enabled) continue
+        const remoteId = entry.files.map((f) => dmm.get(f)).find(Boolean)
+        const mod = remoteId && lookup(remoteId)
+        if (mod && !manifest[mod.id] && (await this.relink(manifest, entry.id, mod))) changed = true
+      }
+    }
+
+    if (changed) await writeManifest(manifest)
+  }
+
+  /**
+   * Collega la mod esterna `localId` alla mod di GameBanana `mod`: da quel momento ha il nome,
+   * l'autore e l'immagine di GameBanana e il controllo degli aggiornamenti, come se fosse stata
+   * installata dall'app. I file restano quelli già presenti.
+   */
+  public static linkMod(localId: string, mod: Mod): Promise<InstalledMod> {
+    return this.exclusive(async () => {
+      const manifest = await readManifest()
+      if (!manifest[localId]?.external) throw new AppError('error.notInstalled')
+      if (manifest[mod.id]) throw new AppError('error.alreadyInstalled')
+      if (!(await this.relink(manifest, localId, mod))) throw new AppError('error.linkFailed')
+      await writeManifest(manifest)
+      return manifest[mod.id]
+    })
+  }
+
+  /**
+   * Sposta nel manifest (senza salvarlo) la voce `oldId` sotto l'id di `mod`, con i suoi dati.
+   * Per una mod disattivata sposta anche la cartella dei suoi file.
+   * @returns `false` se la cartella non si è potuta spostare (il manifest resta com'era)
+   */
+  private static async relink(
+    manifest: Record<string, InstalledMod>,
+    oldId: string,
+    mod: Mod
+  ): Promise<boolean> {
+    const entry = manifest[oldId]
+    if (!entry.enabled) {
+      try {
+        await mkdir(dirname(disabledDir(mod.id)), { recursive: true })
+        await rename(disabledDir(oldId), disabledDir(mod.id))
+      } catch {
+        return false
+      }
+    }
+    delete manifest[oldId]
+    manifest[mod.id] = {
+      ...entry,
+      id: mod.id,
+      name: mod.name,
+      author: mod.author,
+      category: mod.category,
+      hero: mod.hero,
+      image: mod.thumbnailUrl ?? mod.images[0] ?? null,
+      external: false
+    }
+    return true
+  }
+
+  /**
    * Fa caricare a Deadlock le mod di `addons` modificando `gameinfo.gi` (vedi `./gameinfo`).
    * Prima di scrivere salva nel backup `.bak` la versione originale, senza le righe dell'app:
    * così dopo un aggiornamento del gioco il backup è sempre quello della versione corrente.
@@ -271,8 +412,13 @@ export class ManageMods {
    * modificati dalle versioni precedenti dell'app, che rendevano `addons` la cartella principale
    * del gioco. Legge il file una volta sola; con `repair` lo sistema se serve.
    */
-  public static checkGameinfo(gamePath: string, repair: boolean): Promise<GameinfoStatus> {
+  public static checkGameinfo(
+    gamePath: string,
+    repair: boolean,
+    lookup?: ExternalLookup
+  ): Promise<GameinfoStatus> {
     return this.exclusive(async () => {
+      await this.doSyncExternal(gamePath, lookup)
       const enabled = Object.values(await readManifest()).some((e) => e.enabled)
       if (!enabled && !(await readColorsState()).file) return 'notNeeded'
       const citadel = join(gamePath, 'game', 'citadel')

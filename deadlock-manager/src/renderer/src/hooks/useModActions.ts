@@ -11,6 +11,8 @@ export interface ModActionsContextValue {
   uninstall: (modId: string) => Promise<boolean>
   update: (modId: string) => Promise<boolean>
   setEnabled: (modId: string, enabled: boolean) => Promise<boolean>
+  /** Collega la mod esterna `localId` alla mod di GameBanana `modId`. */
+  link: (localId: string, modId: string) => Promise<boolean>
   /** Cambia ogni volta che l'elenco delle mod installate cambia. */
   version: number
 }

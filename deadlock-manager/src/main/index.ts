@@ -3,7 +3,12 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { GameBananaCatalog, INCREMENTAL_INTERVAL_MS } from '../mission/gamebanana'
-import { ManageMods, getInstalledModIds, getInstalledMods } from '../mission/deadlock'
+import {
+  ManageMods,
+  getInstalledModIds,
+  getInstalledMods,
+  type ExternalLookup
+} from '../mission/deadlock'
 import {
   detectGamePath,
   isValidGamePath,
@@ -79,9 +84,31 @@ function createWindow(): void {
   }
 }
 
+/**
+ * Aggiunge al manifest le mod messe in `addons` senza passare dall'app (vedi
+ * `ManageMods.syncExternal`). Senza una cartella di Deadlock valida non fa nulla; un errore
+ * non deve impedire di mostrare le mod già note.
+ */
+async function syncExternalMods(): Promise<void> {
+  const { gamePath } = await readSettings()
+  if (!gamePath || !(await isValidGamePath(gamePath))) return
+  await ManageMods.syncExternal(gamePath, await remoteLookup()).catch((e) =>
+    console.error('[external]', e)
+  )
+}
+
+/** Cerca nel catalogo (atteso se non è ancora caricato) le mod per id numerico di GameBanana. */
+async function remoteLookup(): Promise<ExternalLookup> {
+  const ready = await catalogReady.catch(() => undefined)
+  return (remoteId) => ready?.getById(`Mod-${remoteId}`) ?? ready?.getById(`Sound-${remoteId}`)
+}
+
 /** Mod installate con l'indicazione degli aggiornamenti disponibili. */
 async function installedWithInfo(): Promise<InstalledModInfo[]> {
+  await syncExternalMods()
   return (await getInstalledMods()).map((entry) => {
+    // le mod esterne non hanno una pagina su GameBanana da cui controllare gli aggiornamenti
+    if (entry.external) return { ...entry, available: true, updateAvailable: false }
     // finché l'elenco non è caricato non si può sapere se ci sono aggiornamenti
     if (!catalog) return { ...entry, available: true, updateAvailable: false }
     const mod = catalog.getById(entry.id)
@@ -150,9 +177,19 @@ function registerIpc(): void {
   ipcMain.handle('mods:setEnabled', (_, modId: string, enabled: boolean) =>
     toResult(async () => ManageMods.setEnabled(modId, enabled, await requireGamePath()))
   )
+  ipcMain.handle('mods:link', (_, localId: string, modId: string) =>
+    toResult(async () => {
+      const mod = (await catalogReady).getById(modId)
+      if (!mod) throw new AppError('error.modNotFound')
+      return ManageMods.linkMod(localId, mod)
+    })
+  )
   ipcMain.handle('mods:installed', () => getInstalledModIds())
   ipcMain.handle('mods:installedInfo', () => installedWithInfo())
-  ipcMain.handle('mods:loadOrder', () => ManageMods.getLoadOrder())
+  ipcMain.handle('mods:loadOrder', async () => {
+    await syncExternalMods()
+    return ManageMods.getLoadOrder()
+  })
   ipcMain.handle('mods:setLoadOrder', (_, modIds: string[]) =>
     toResult(async () => ManageMods.setLoadOrder(modIds, await requireGamePath()))
   )
@@ -236,7 +273,11 @@ const DEADLOCK_STEAM_APP_ID = 1422450
 async function checkGameinfo(forceRepair = false): Promise<GameinfoStatus> {
   const settings = await readSettings()
   if (!settings.gamePath || !(await isValidGamePath(settings.gamePath))) return 'noGame'
-  return ManageMods.checkGameinfo(settings.gamePath, forceRepair || settings.autoRepairGameinfo)
+  return ManageMods.checkGameinfo(
+    settings.gamePath,
+    forceRepair || settings.autoRepairGameinfo,
+    await remoteLookup()
+  )
 }
 
 // This method will be called when Electron has finished

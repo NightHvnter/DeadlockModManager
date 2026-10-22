@@ -15,6 +15,11 @@ export interface InstalledMod {
   category: string
   hero: string | null
   image: string | null
+  /**
+   * `true` per i VPK trovati in `addons` ma non installati dall'app (messi a mano, da un altro
+   * manager o prima di reinstallare l'app): non hanno una mod di GameBanana collegata.
+   */
+  external?: boolean
 }
 
 /** Mod installata con le informazioni ricavate dal catalogo. */
