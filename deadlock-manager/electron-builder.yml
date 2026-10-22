@@ -28,16 +28,28 @@ mac:
   notarize: false
 dmg:
   artifactName: ${name}-${version}.${ext}
+# Su Linux l'architettura predefinita è x64. Gli strumenti che servono a rpm, pacman e flatpak
+# vengono installati dal workflow di release.
 linux:
   target:
     - AppImage
-    - snap
     - deb
-  maintainer: electronjs.org
+    - rpm
+    - pacman
+    - snap
+    - flatpak
+  maintainer: NightHvnter
   category: Utility
 appImage:
   artifactName: ${name}-${version}.${ext}
+# I valori predefiniti di electron-builder (20.08) sono fuori supporto da anni
+flatpak:
+  runtimeVersion: '24.08'
+  baseVersion: '24.08'
 npmRebuild: false
+# Gli installer vengono caricati in una bozza di GitHub Release (workflow .github/workflows/release.yml)
 publish:
-  provider: generic
-  url: https://example.com/auto-updates
+  provider: github
+  owner: NightHvnter
+  repo: DeadlockModManager
+  releaseType: draft

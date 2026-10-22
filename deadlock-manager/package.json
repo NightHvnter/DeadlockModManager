@@ -1,10 +1,14 @@
 {
   "name": "deadlock-manager",
   "version": "1.0.0",
-  "description": "Mod manager per Deadlock",
+  "description": "Mod manager for Deadlock",
   "main": "./out/main/index.js",
-  "author": "example.com",
-  "homepage": "https://electron-vite.org",
+  "author": "NightHvnter",
+  "homepage": "https://github.com/NightHvnter/DeadlockModManager",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/NightHvnter/DeadlockModManager.git"
+  },
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint --cache .",

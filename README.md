@@ -4,6 +4,16 @@ Desktop app (Electron + React + TypeScript) to browse, install and manage mods f
 [Deadlock](https://store.steampowered.com/app/1422450/Deadlock/), using the
 [GameBanana](https://gamebanana.com/games/20948) API directly.
 
+## Download
+
+Installers for Windows (`.exe`), macOS (`.dmg`) and Linux (`.AppImage`, `.deb`, `.rpm`, `.pacman`,
+`.snap`, `.flatpak`) are attached to each
+[release](https://github.com/NightHvnter/DeadlockModManager/releases).
+
+The builds are not code-signed yet: Windows SmartScreen may show "Windows protected your PC"
+(choose **More info** → **Run anyway**), and macOS may say the app "cannot be opened" (right-click
+the app → **Open**).
+
 ## Features
 
 - Mod list with search, filters by category, hero and type (visual, audio, maps) and sorting
@@ -86,6 +96,8 @@ The settings are stored in `settings.json` in the app's data folder
 
 ## Development
 
+All commands are run from the `deadlock-manager` folder.
+
 ```bash
 npm install
 ```
@@ -118,3 +130,25 @@ npm run build:linux
 ```bash
 npm run build:mac
 ```
+
+## Releases
+
+Releases are built by GitHub Actions ([`.github/workflows/release.yml`](.github/workflows/release.yml))
+on Windows, macOS and Linux and uploaded to a **draft** GitHub release.
+
+1. Update `version` in `deadlock-manager/package.json` (for example `1.1.0`) and commit it.
+2. Create a tag with the same version prefixed by `v` and push it:
+
+   ```bash
+   git tag v1.1.0
+   ```
+
+   ```bash
+   git push origin v1.1.0
+   ```
+
+3. When the workflow has finished, open the draft on the
+   [releases page](https://github.com/NightHvnter/DeadlockModManager/releases), write the release
+   notes and publish it.
+
+The workflow stops if the tag does not match the version in `package.json`.

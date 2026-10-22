@@ -1,0 +1,68 @@
+# Compila Deadlock Mod Manager per Windows, macOS e Linux e carica gli installer in una bozza di
+# GitHub Release. Parte quando si pubblica un tag di versione, ad esempio:
+#   git tag v1.0.0 && git push origin v1.0.0
+# Il tag deve coincidere con "version" in deadlock-manager/package.json.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: win
+          - os: macos-latest
+            target: mac
+          - os: ubuntu-latest
+            target: linux
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: deadlock-manager
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: deadlock-manager/package-lock.json
+
+      - name: Check that the tag matches package.json
+        shell: bash
+        run: |
+          version="v$(node -p "require('./package.json').version")"
+          if [ "$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package.json version ($version)"
+            exit 1
+          fi
+
+      # Strumenti per i pacchetti Linux: rpm (rpmbuild), pacman (bsdtar), flatpak (flatpak-builder
+      # e il repository Flathub da cui electron-builder scarica runtime ed Electron BaseApp).
+      # AppImage, deb e snap non richiedono altro.
+      - name: Install Linux packaging tools
+        if: matrix.target == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm libarchive-tools flatpak flatpak-builder
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+
+      - run: npm ci
+
+      - name: Typecheck and build
+        run: npm run build
+
+      - name: Package and upload to the draft release
+        run: npx electron-builder --${{ matrix.target }} --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
