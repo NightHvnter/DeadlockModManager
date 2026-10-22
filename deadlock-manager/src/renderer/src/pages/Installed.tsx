@@ -102,7 +102,7 @@ export default function Installed(): React.JSX.Element {
                     src={mod.image}
                     alt=""
                     loading="lazy"
-                    className="aspect-video w-28 shrink-0 rounded-md object-cover"
+                    className={mod.enabled ? "aspect-video w-28 shrink-0 rounded-md object-cover" : "aspect-video w-28 shrink-0 rounded-md object-cover grayscale-100"}
                   />
                 ) : (
                   <div className="aspect-video w-28 shrink-0 rounded-md bg-muted" />
