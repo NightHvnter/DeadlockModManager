@@ -133,7 +133,7 @@ export default function Home(): React.JSX.Element {
   return (
     <div className="space-y-4">
       <CatalogSyncBanner />
-      <div className="flex flex-wrap gap-2">
+      <div className="flex gap-2 overflow-scroll">
         <Input
           className="max-w-sm"
           placeholder={t('home.search')}

@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router'
 import AppBar from './Appbar'
+import GameinfoBanner from './GameinfoBanner'
 import GamePathBanner from './GamePathBanner'
 
 export default function Layout(): React.JSX.Element {
@@ -7,6 +8,7 @@ export default function Layout(): React.JSX.Element {
     <div className="min-h-screen bg-background text-foreground">
       <AppBar />
       <GamePathBanner />
+      <GameinfoBanner />
       <main className="p-4">
         <Outlet />
       </main>

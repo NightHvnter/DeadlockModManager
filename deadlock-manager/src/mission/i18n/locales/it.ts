@@ -2,6 +2,14 @@
 export const it = {
   'nav.mods': 'Mod',
   'nav.installed': 'Installate',
+  'play.button': 'Gioca',
+  'play.tooltip': 'Controlla che le mod siano attive e avvia Deadlock con Steam',
+  'play.launching': 'Avvio di Deadlock tramite Steam...',
+  'gameinfo.repaired':
+    'Un aggiornamento di Deadlock aveva disattivato le mod: gameinfo.gi è stato sistemato',
+  'gameinfo.needsRepair':
+    'Un aggiornamento di Deadlock ha disattivato le mod: in gameinfo.gi manca la riga che le carica.',
+  'gameinfo.repair': 'Ripara',
 
   'settings.title': 'Impostazioni',
   'settings.description': "Personalizza le impostazioni dell'applicazione",
@@ -12,6 +20,9 @@ export const it = {
   'settings.openAddons': 'Apri addons',
   'settings.gamePathHint':
     'La cartella che contiene game/citadel, di solito steamapps/common/Deadlock.',
+  'settings.autoRepair': 'Ripara gameinfo.gi automaticamente',
+  'settings.autoRepairHint':
+    "Gli aggiornamenti di Deadlock riportano gameinfo.gi all'originale e le mod smettono di caricarsi. All'apertura dell'app e quando premi Gioca, l'app controlla il file e rimette la riga delle mod. In nessun altro momento i file del gioco vengono controllati.",
   'settings.language': 'Lingua',
   'settings.languageSystem': 'Lingua di sistema',
   'settings.theme': 'Tema',

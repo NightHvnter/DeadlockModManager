@@ -34,6 +34,16 @@ il suo file e registrarla in `LANGUAGES` e `MESSAGES` in `src/mission/i18n/index
 4. I file installati sono registrati in `installed.json` nella cartella dati dell'app.
    Le mod disattivate vengono spostate in `disabled/<id>` nella stessa cartella.
 
+## Aggiornamenti del gioco e `gameinfo.gi`
+
+Gli aggiornamenti di Deadlock (e la verifica dei file di Steam) riportano `gameinfo.gi`
+all'originale, togliendo la riga `Game citadel/addons`: le mod restano installate ma il gioco
+non le carica più. L'app controlla il file **solo all'apertura e quando si preme "Gioca"**
+(mai in background) e, se ci sono mod attive e la riga manca, la rimette aggiornando prima il
+backup `gameinfo.gi.bak`. La riparazione automatica si può disattivare nelle impostazioni: in
+quel caso compare un avviso con il pulsante "Ripara". "Gioca" avvia poi Deadlock tramite Steam
+(`steam://rungameid/1422450`).
+
 ## Ordine di caricamento
 
 Se due mod contengono gli stessi file, il gioco usa quelli della mod con l'indice `pakNN` più

@@ -1,8 +1,8 @@
-import { InstalledMod, Mod, ModChangelogEntry, ModDownload } from '../types'
+import { GameinfoStatus, InstalledMod, Mod, ModChangelogEntry, ModDownload } from '../types'
 import { AppError } from '../i18n'
 
 import { createHash } from 'node:crypto'
-import { constants, createReadStream, createWriteStream } from 'node:fs'
+import { createReadStream, createWriteStream } from 'node:fs'
 import {
   copyFile,
   mkdir,
@@ -243,11 +243,31 @@ export class ManageMods {
 
     const re = /(SearchPaths\s*\{\r?\n)/
     if (!re.test(text)) throw new AppError('error.searchPaths')
-    await copyFile(path, `${path}.bak`, constants.COPYFILE_EXCL).catch(() => {})
+    // Senza la riga il file è quello originale di Steam (anche dopo un aggiornamento del gioco):
+    // il backup viene rifatto ogni volta, così non resta la copia di una versione vecchia.
+    await copyFile(path, `${path}.bak`)
     await writeFile(
       path,
       text.replace(re, (m) => `${m}\t\t\tGame\t\t\t\tcitadel/addons\n`)
     )
+  }
+
+  /**
+   * Controlla che `gameinfo.gi` carichi le mod: gli aggiornamenti di Deadlock e la verifica dei
+   * file di Steam lo riportano all'originale, togliendo la riga `Game citadel/addons`. Legge il
+   * file una volta sola; con `repair` rimette la riga se manca.
+   */
+  public static checkGameinfo(gamePath: string, repair: boolean): Promise<GameinfoStatus> {
+    return this.exclusive(async () => {
+      const enabled = Object.values(await readManifest()).some((e) => e.enabled)
+      if (!enabled) return 'notNeeded'
+      const citadel = join(gamePath, 'game', 'citadel')
+      const text = await readFile(join(citadel, 'gameinfo.gi'), 'utf8')
+      if (/^\s*Game\s+citadel\/addons\s*$/m.test(text)) return 'ok'
+      if (!repair) return 'needsRepair'
+      await this.ensureAddonsSearchPath(citadel)
+      return 'repaired'
+    })
   }
 
   public static uninstallMod(modId: string, gamePath: string): Promise<void> {

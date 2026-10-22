@@ -12,6 +12,7 @@ import {
   writeSettings
 } from '../mission/settings'
 import type {
+  GameinfoStatus,
   InstalledModInfo,
   InstallProgress,
   IpcResult,
@@ -193,6 +194,32 @@ function registerIpc(): void {
       return null
     })
   )
+
+  // gameinfo.gi viene controllato solo all'avvio dell'app (dal renderer), con "Gioca" e con
+  // "Ripara": mai in background mentre l'app è aperta
+  ipcMain.handle('game:checkGameinfo', () => toResult(() => checkGameinfo()))
+  ipcMain.handle('game:repairGameinfo', () => toResult(() => checkGameinfo(true)))
+  ipcMain.handle('game:play', () =>
+    toResult(async () => {
+      // un errore nel controllo non deve impedire di giocare: si avvia comunque e lo si segnala
+      const status = await checkGameinfo().catch((): GameinfoStatus => 'needsRepair')
+      await shell.openExternal(`steam://rungameid/${DEADLOCK_STEAM_APP_ID}`)
+      return status
+    })
+  )
+}
+
+/** Id di Deadlock su Steam, per avviarlo con `steam://rungameid/`. */
+const DEADLOCK_STEAM_APP_ID = 1422450
+
+/**
+ * Controlla `gameinfo.gi` e, se la riparazione automatica è attiva (o `forceRepair`), rimette
+ * la riga che carica le mod quando un aggiornamento del gioco l'ha tolta.
+ */
+async function checkGameinfo(forceRepair = false): Promise<GameinfoStatus> {
+  const settings = await readSettings()
+  if (!settings.gamePath || !(await isValidGamePath(settings.gamePath))) return 'noGame'
+  return ManageMods.checkGameinfo(settings.gamePath, forceRepair || settings.autoRepairGameinfo)
 }
 
 // This method will be called when Electron has finished

@@ -8,10 +8,17 @@ export interface Settings {
   includeNSFW: boolean
   /** Lingua dell'interfaccia; `null` usa quella del sistema. */
   language: Language | null
+  /**
+   * Se `true`, all'avvio dell'app e quando si preme "Gioca" la riga che carica le mod viene
+   * rimessa in `gameinfo.gi` se un aggiornamento del gioco l'ha tolta. Il file non viene mai
+   * controllato in altri momenti.
+   */
+  autoRepairGameinfo: boolean
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   gamePath: null,
   includeNSFW: false,
-  language: null
+  language: null,
+  autoRepairGameinfo: true
 }

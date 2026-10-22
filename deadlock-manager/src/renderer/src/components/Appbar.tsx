@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router'
-import { Download, LayoutGrid, Package } from 'lucide-react'
-import { buttonVariants } from '@/components/ui/button'
+import { Download, LayoutGrid, Package, Play } from 'lucide-react'
+import { Button, buttonVariants } from '@/components/ui/button'
+import { useGameinfo } from '@/hooks/useGameinfo'
 import { useI18n } from '@/hooks/useI18n'
 import { cn } from '@/lib/utils'
 import SettingsSheet from './SettingsSheet'
@@ -15,6 +16,7 @@ const links: { to: string; label: MessageKey; icon: typeof LayoutGrid }[] = [
 /** Barra di navigazione fissa in alto, con il titolo, i link alle pagine e il cambio tema. */
 export default function AppBar(): React.JSX.Element {
   const { t } = useI18n()
+  const { play, launching } = useGameinfo()
 
   return (
     <nav className="sticky top-0 z-10 flex items-center gap-2 border-b bg-background/80 px-4 py-2 backdrop-blur">
@@ -37,6 +39,16 @@ export default function AppBar(): React.JSX.Element {
         </NavLink>
       ))}
 
+      <Button
+        size="sm"
+        className="ml-auto"
+        title={t('play.tooltip')}
+        disabled={launching}
+        onClick={play}
+      >
+        <Play className="size-4" />
+        {t('play.button')}
+      </Button>
       <SettingsSheet />
     </nav>
   )

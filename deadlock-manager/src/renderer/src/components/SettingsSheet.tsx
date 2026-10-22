@@ -73,7 +73,6 @@ export default function SettingsSheet(): React.JSX.Element {
       <Button
         variant="ghost"
         size="icon"
-        className="ml-auto"
         title={t('settings.title')}
         onClick={() => setSheetOpen(true)}
       >
@@ -115,6 +114,17 @@ export default function SettingsSheet(): React.JSX.Element {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">{t('settings.gamePathHint')}</p>
+            </section>
+
+            <section className="grid gap-2">
+              <Label className="flex items-center gap-2">
+                <Checkbox
+                  checked={settings?.autoRepairGameinfo ?? true}
+                  onCheckedChange={(checked) => update({ autoRepairGameinfo: checked === true })}
+                />
+                {t('settings.autoRepair')}
+              </Label>
+              <p className="text-xs text-muted-foreground">{t('settings.autoRepairHint')}</p>
             </section>
 
             <section className="grid gap-2">

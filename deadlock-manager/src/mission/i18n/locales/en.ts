@@ -3,6 +3,13 @@ import type { Messages } from './it'
 export const en: Messages = {
   'nav.mods': 'Mods',
   'nav.installed': 'Installed',
+  'play.button': 'Play',
+  'play.tooltip': 'Check that mods are enabled and launch Deadlock through Steam',
+  'play.launching': 'Launching Deadlock through Steam...',
+  'gameinfo.repaired': 'A Deadlock update had disabled your mods: gameinfo.gi has been fixed',
+  'gameinfo.needsRepair':
+    'A Deadlock update disabled your mods: gameinfo.gi is missing the line that loads them.',
+  'gameinfo.repair': 'Repair',
 
   'settings.title': 'Settings',
   'settings.description': 'Customize the application settings',
@@ -13,6 +20,9 @@ export const en: Messages = {
   'settings.openAddons': 'Open addons',
   'settings.gamePathHint':
     'The folder that contains game/citadel, usually steamapps/common/Deadlock.',
+  'settings.autoRepair': 'Repair gameinfo.gi automatically',
+  'settings.autoRepairHint':
+    'Deadlock updates restore gameinfo.gi to the original and mods stop loading. When the app opens and when you press Play, the app checks the file and puts the mods line back. The game files are not checked at any other time.',
   'settings.language': 'Language',
   'settings.languageSystem': 'System language',
   'settings.theme': 'Theme',

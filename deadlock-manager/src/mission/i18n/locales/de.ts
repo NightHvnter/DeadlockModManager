@@ -3,6 +3,14 @@ import type { Messages } from './it'
 export const de: Messages = {
   'nav.mods': 'Mods',
   'nav.installed': 'Installiert',
+  'play.button': 'Spielen',
+  'play.tooltip': 'Prüft, ob die Mods aktiv sind, und startet Deadlock über Steam',
+  'play.launching': 'Deadlock wird über Steam gestartet...',
+  'gameinfo.repaired':
+    'Ein Deadlock-Update hatte deine Mods deaktiviert: gameinfo.gi wurde repariert',
+  'gameinfo.needsRepair':
+    'Ein Deadlock-Update hat deine Mods deaktiviert: In gameinfo.gi fehlt die Zeile, die sie lädt.',
+  'gameinfo.repair': 'Reparieren',
 
   'settings.title': 'Einstellungen',
   'settings.description': 'Passe die Einstellungen der Anwendung an',
@@ -13,6 +21,9 @@ export const de: Messages = {
   'settings.openAddons': 'Addons öffnen',
   'settings.gamePathHint':
     'Der Ordner, der game/citadel enthält, normalerweise steamapps/common/Deadlock.',
+  'settings.autoRepair': 'gameinfo.gi automatisch reparieren',
+  'settings.autoRepairHint':
+    'Deadlock-Updates setzen gameinfo.gi auf das Original zurück und Mods werden nicht mehr geladen. Beim Öffnen der App und wenn du auf Spielen drückst, prüft die App die Datei und fügt die Mod-Zeile wieder ein. Zu keinem anderen Zeitpunkt werden Spieldateien geprüft.',
   'settings.language': 'Sprache',
   'settings.languageSystem': 'Systemsprache',
   'settings.theme': 'Design',
