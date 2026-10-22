@@ -135,20 +135,3 @@ npm run build:mac
 
 Releases are built by GitHub Actions ([`.github/workflows/release.yml`](.github/workflows/release.yml))
 on Windows, macOS and Linux and uploaded to a **draft** GitHub release.
-
-1. Update `version` in `deadlock-manager/package.json` (for example `1.1.0`) and commit it.
-2. Create a tag with the same version prefixed by `v` and push it:
-
-   ```bash
-   git tag v1.1.0
-   ```
-
-   ```bash
-   git push origin v1.1.0
-   ```
-
-3. When the workflow has finished, open the draft on the
-   [releases page](https://github.com/NightHvnter/DeadlockModManager/releases), write the release
-   notes and publish it.
-
-The workflow stops if the tag does not match the version in `package.json`.
