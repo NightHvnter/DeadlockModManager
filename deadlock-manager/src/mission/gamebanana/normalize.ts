@@ -35,8 +35,7 @@ function detectHero(
   if (exact) return exact
   const haystack = [record._sName, ...tags].join(' ')
   return (
-    HEROES_BY_LENGTH.find((h) => new RegExp(`\\b${escapeRegExp(h)}\\b`, 'i').test(haystack)) ??
-    null
+    HEROES_BY_LENGTH.find((h) => new RegExp(`\\b${escapeRegExp(h)}\\b`, 'i').test(haystack)) ?? null
   )
 }
 

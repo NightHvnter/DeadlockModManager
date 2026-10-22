@@ -20,7 +20,8 @@ export function extractZip(zipPath: string, destDir: string): Promise<void> {
       zip.on('entry', async (entry) => {
         try {
           const target = resolve(destDir, entry.fileName)
-          if (!target.startsWith(root)) throw new AppError('error.invalidPath', { path: entry.fileName })
+          if (!target.startsWith(root))
+            throw new AppError('error.invalidPath', { path: entry.fileName })
           const isSymlink = ((entry.externalFileAttributes >>> 16) & 0o170000) === 0o120000
           if (entry.fileName.endsWith('/')) {
             await mkdir(target, { recursive: true })

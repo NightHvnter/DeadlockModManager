@@ -32,7 +32,7 @@ export const fr: Messages = {
   'theme.ocean': 'Océan',
   'theme.forest': 'Forêt',
 
-  'banner.missing': "Dossier de Deadlock introuvable : il est nécessaire pour installer des mods.",
+  'banner.missing': 'Dossier de Deadlock introuvable : il est nécessaire pour installer des mods.',
   'banner.set': 'Définir',
 
   'home.search': 'Rechercher un mod...',
@@ -117,10 +117,11 @@ export const fr: Messages = {
   'error.checksum': 'Somme de contrôle MD5 invalide : fichier corrompu',
   'error.unsupportedFormat': 'Format non pris en charge : {ext}',
   'error.noVpk': 'Aucun fichier _dir.vpk trouvé dans le mod',
-  'error.noFreeIndex': "Plus aucun index pakNN libre dans addons",
+  'error.noFreeIndex': 'Plus aucun index pakNN libre dans addons',
   'error.searchPaths': 'SearchPaths introuvable dans gameinfo.gi',
   'error.api': "Erreur de l'API ({status})",
-  'error.syncIncomplete': 'Synchronisation incomplète : {got} mods lus sur {expected}, nouvel essai plus tard',
+  'error.syncIncomplete':
+    'Synchronisation incomplète : {got} mods lus sur {expected}, nouvel essai plus tard',
   'error.downloadFailed': 'Échec du téléchargement ({status})',
   'error.invalidPath': "Chemin invalide dans l'archive : {path}"
 }

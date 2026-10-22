@@ -1,7 +1,7 @@
-import { join } from "node:path";
-import { app } from "electron"
-import { readFile, writeFile } from "node:fs/promises";
-import type { InstalledMod } from "../types";
+import { join } from 'node:path'
+import { app } from 'electron'
+import { readFile, writeFile } from 'node:fs/promises'
+import type { InstalledMod } from '../types'
 
 type Manifest = Record<string, InstalledMod>
 

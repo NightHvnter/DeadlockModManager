@@ -140,7 +140,11 @@ export class GameBananaClient {
    * più vecchia (`latestModified = false`): le nuove mod si aggiungono in fondo e le pagine non
    * scorrono durante la lettura. Quella incrementale parte dalla modificata più di recente.
    */
-  async indexPage(type: SubmissionType, page: number, latestModified: boolean): Promise<GbIndexPage> {
+  async indexPage(
+    type: SubmissionType,
+    page: number,
+    latestModified: boolean
+  ): Promise<GbIndexPage> {
     if (page < 1 || page > MAX_INDEX_PAGE) throw new AppError('error.api', { status: 400 })
     const params = new URLSearchParams({
       _nPerpage: String(INDEX_PAGE_SIZE),
@@ -166,7 +170,8 @@ export class GameBananaClient {
     }
     // risposta: un array per mod, con i campi nell'ordine richiesto
     const rows = await this.get<unknown>(`${LEGACY_API}Core/Item/Data?${params}`)
-    if (!Array.isArray(rows) || rows.length !== ids.length) throw new AppError('error.api', { status: 502 })
+    if (!Array.isArray(rows) || rows.length !== ids.length)
+      throw new AppError('error.api', { status: 502 })
     return rows.map((row) => {
       if (!Array.isArray(row) || typeof row[0] !== 'string') return null
       return {
@@ -188,7 +193,10 @@ export class GameBananaClient {
 
   /** Pagina del changelog di una mod, dalla voce più recente. */
   updates(type: SubmissionType, id: number, page: number): Promise<GbUpdatesPage> {
-    const params = new URLSearchParams({ _nPage: String(page), _nPerpage: String(UPDATES_PAGE_SIZE) })
+    const params = new URLSearchParams({
+      _nPage: String(page),
+      _nPerpage: String(UPDATES_PAGE_SIZE)
+    })
     return this.get(`${API}${type}/${id}/Updates?${params}`)
   }
 }

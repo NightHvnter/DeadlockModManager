@@ -69,8 +69,7 @@ export const de: Messages = {
   'mod.enabled': 'Mod aktiviert',
   'mod.disabled': 'Mod deaktiviert',
 
-  'details.byline':
-    'von {author} · {downloads} Downloads · {likes} Likes · aktualisiert am {date}',
+  'details.byline': 'von {author} · {downloads} Downloads · {likes} Likes · aktualisiert am {date}',
   'details.dependencies': 'Abhängigkeiten',
   'details.required': '(erforderlich)',
   'details.recommended': '(empfohlen)',
@@ -120,7 +119,8 @@ export const de: Messages = {
   'error.noFreeIndex': 'Kein freier pakNN-Index in addons',
   'error.searchPaths': 'SearchPaths in gameinfo.gi nicht gefunden',
   'error.api': 'API-Fehler ({status})',
-  'error.syncIncomplete': 'Unvollständige Synchronisierung: {got} von {expected} Mods gelesen, später erneut versuchen',
+  'error.syncIncomplete':
+    'Unvollständige Synchronisierung: {got} von {expected} Mods gelesen, später erneut versuchen',
   'error.downloadFailed': 'Download fehlgeschlagen ({status})',
   'error.invalidPath': 'Ungültiger Pfad im Archiv: {path}'
 }

@@ -68,8 +68,7 @@ export const it = {
   'mod.enabled': 'Mod attivata',
   'mod.disabled': 'Mod disattivata',
 
-  'details.byline':
-    'di {author} · {downloads} download · {likes} mi piace · aggiornata il {date}',
+  'details.byline': 'di {author} · {downloads} download · {likes} mi piace · aggiornata il {date}',
   'details.dependencies': 'Dipendenze',
   'details.required': '(richiesta)',
   'details.recommended': '(consigliata)',
@@ -119,7 +118,8 @@ export const it = {
   'error.noFreeIndex': 'Nessun indice pakNN libero in addons',
   'error.searchPaths': 'SearchPaths non trovato in gameinfo.gi',
   'error.api': "Errore dell'API ({status})",
-  'error.syncIncomplete': 'Sincronizzazione incompleta: lette {got} mod su {expected}, riprovo più tardi',
+  'error.syncIncomplete':
+    'Sincronizzazione incompleta: lette {got} mod su {expected}, riprovo più tardi',
   'error.downloadFailed': 'Download fallito ({status})',
   'error.invalidPath': "Percorso non valido nell'archivio: {path}"
 }

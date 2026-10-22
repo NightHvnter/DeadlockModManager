@@ -7,13 +7,13 @@ import NotFound from './pages/NotFound'
 export default function Router(): React.JSX.Element {
   return (
     <HashRouter>
-        <Routes>
-            <Route path="/" element={<Layout />}>
-                <Route index element={<Home />} />
-                <Route path="installed" element={<Installed />} />
-                <Route path="*" element={<NotFound />} />
-            </Route>
-        </Routes>
+      <Routes>
+        <Route path="/" element={<Layout />}>
+          <Route index element={<Home />} />
+          <Route path="installed" element={<Installed />} />
+          <Route path="*" element={<NotFound />} />
+        </Route>
+      </Routes>
     </HashRouter>
   )
 }

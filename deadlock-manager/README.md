@@ -39,12 +39,12 @@ stessi endpoint, limiti e strategia dell'app ufficiale
 ([deadlock-mod-manager](https://github.com/deadlock-mod-manager/deadlock-mod-manager)) e salvato
 in `gamebanana-catalog.json`.
 
-| Endpoint | A cosa serve |
-|---|---|
-| `apiv11/{Mod,Sound}/Index` | elenco delle mod di Deadlock, 50 per pagina |
-| `api.gamebanana.com/Core/Item/Data` | "idratazione" di 40 mod per richiesta: download, categorie, descrizione, data dei file |
-| `apiv11/{Mod,Sound}/{id}/DownloadPage` | file da scaricare per l'installazione |
-| `apiv11/{Mod,Sound}/{id}/Updates` | changelog nel dettaglio della mod |
+| Endpoint                               | A cosa serve                                                                           |
+| -------------------------------------- | -------------------------------------------------------------------------------------- |
+| `apiv11/{Mod,Sound}/Index`             | elenco delle mod di Deadlock, 50 per pagina                                            |
+| `api.gamebanana.com/Core/Item/Data`    | "idratazione" di 40 mod per richiesta: download, categorie, descrizione, data dei file |
+| `apiv11/{Mod,Sound}/{id}/DownloadPage` | file da scaricare per l'installazione                                                  |
+| `apiv11/{Mod,Sound}/{id}/Updates`      | changelog nel dettaglio della mod                                                      |
 
 - **primo avvio**: la prima pagina di mod e di audio è mostrata subito; poi parte la
   sincronizzazione completa, che legge l'indice dalla mod più vecchia (`Generic_Oldest`, così le

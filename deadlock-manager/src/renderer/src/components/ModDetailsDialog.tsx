@@ -35,7 +35,10 @@ interface ModDetailsDialogProps {
 }
 
 /** Finestra con immagini, descrizione, dipendenze e file scaricabili di una mod. */
-export default function ModDetailsDialog({ mod, onClose }: ModDetailsDialogProps): React.JSX.Element {
+export default function ModDetailsDialog({
+  mod,
+  onClose
+}: ModDetailsDialogProps): React.JSX.Element {
   return (
     <Dialog open={!!mod} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
@@ -88,7 +91,11 @@ function Details({ mod }: { mod: Mod }): React.JSX.Element {
       {image && (
         <div className="space-y-2">
           <div className="relative">
-            <img src={image} alt="" className="aspect-video w-full rounded-lg object-contain bg-muted" />
+            <img
+              src={image}
+              alt=""
+              className="aspect-video w-full rounded-lg object-contain bg-muted"
+            />
             {images.length > 1 && (
               <>
                 <Button

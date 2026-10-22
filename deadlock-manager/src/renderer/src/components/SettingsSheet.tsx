@@ -176,9 +176,7 @@ export default function SettingsSheet(): React.JSX.Element {
                   {t('settings.syncIndex', { done: status.sync.done, total: status.sync.total })}
                 </p>
               )}
-              {status?.lastError && (
-                <p className="text-sm text-destructive">{status.lastError}</p>
-              )}
+              {status?.lastError && <p className="text-sm text-destructive">{status.lastError}</p>}
               <Button
                 variant="outline"
                 size="sm"

@@ -1,5 +1,5 @@
-import { InstalledMod, Mod, ModChangelogEntry, ModDownload } from "../types"
-import { AppError } from "../i18n"
+import { InstalledMod, Mod, ModChangelogEntry, ModDownload } from '../types'
+import { AppError } from '../i18n'
 
 import { createHash } from 'node:crypto'
 import { constants, createReadStream, createWriteStream } from 'node:fs'
@@ -9,10 +9,10 @@ import { basename, dirname, extname, join } from 'node:path'
 import { Readable, Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import type { ReadableStream as WebStream } from 'node:stream/web'
-import { disabledDir, readManifest, writeManifest } from "./manifest"
-import { extractZip as extract} from "../func/extractZip"
-import { extractRar } from "../func/extractRar"
-import { gameBanana, parseModId } from "../gamebanana"
+import { disabledDir, readManifest, writeManifest } from './manifest'
+import { extractZip as extract } from '../func/extractZip'
+import { extractRar } from '../func/extractRar'
+import { gameBanana, parseModId } from '../gamebanana'
 const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 /** Chiamata con i byte ricevuti e quelli totali (`0` se sconosciuti) durante il download. */
@@ -33,7 +33,7 @@ export class ManageMods {
     mod: Mod,
     gamePath: string,
     download?: ModDownload,
-    onProgress?: ProgressCallback,
+    onProgress?: ProgressCallback
   ): Promise<string[]> {
     return this.exclusive(() => this.doInstall(mod, gamePath, download, onProgress))
   }
@@ -42,7 +42,7 @@ export class ManageMods {
     mod: Mod,
     gamePath: string,
     download?: ModDownload,
-    onProgress?: ProgressCallback,
+    onProgress?: ProgressCallback
   ): Promise<string[]> {
     if ((await readManifest())[mod.id]) throw new AppError('error.alreadyInstalled')
 
@@ -72,8 +72,9 @@ export class ManageMods {
       else throw new AppError('error.unsupportedFormat', { ext })
 
       // 3. Copia dei VPK in addons con il prefisso pakNN
-      const vpks = (await readdir(extracted, { recursive: true }))
-        .filter((f) => f.toLowerCase().endsWith('_dir.vpk'))
+      const vpks = (await readdir(extracted, { recursive: true })).filter((f) =>
+        f.toLowerCase().endsWith('_dir.vpk')
+      )
       if (vpks.length === 0) throw new AppError('error.noVpk')
 
       await mkdir(addons, { recursive: true })
@@ -97,7 +98,7 @@ export class ManageMods {
         author: mod.author,
         category: mod.category,
         hero: mod.hero,
-        image: mod.thumbnailUrl ?? mod.images[0] ?? null,
+        image: mod.thumbnailUrl ?? mod.images[0] ?? null
       }
       await writeManifest(manifest)
 
@@ -119,11 +120,11 @@ export class ManageMods {
     dir: string,
     base: string,
     addons: string,
-    placed: string[],
+    placed: string[]
   ): Promise<void> {
     const prefix = `pak${await this.nextFreeIndex(addons)}`
     const parts = (await readdir(dir)).filter(
-      (f) => f === `${base}_dir.vpk` || new RegExp(`^${escapeRegExp(base)}_\\d{3}\\.vpk$`).test(f),
+      (f) => f === `${base}_dir.vpk` || new RegExp(`^${escapeRegExp(base)}_\\d{3}\\.vpk$`).test(f)
     )
     for (const part of parts) {
       const target = `${prefix}${part.slice(base.length)}`
@@ -170,7 +171,7 @@ export class ManageMods {
     url: string,
     dest: string,
     size: number,
-    onProgress?: ProgressCallback,
+    onProgress?: ProgressCallback
   ): Promise<void> {
     const res = await fetch(url)
     if (!res.ok || !res.body) throw new AppError('error.downloadFailed', { status: res.status })
@@ -186,7 +187,7 @@ export class ManageMods {
           onProgress(received, total)
         }
         done(null, chunk)
-      },
+      }
     })
     await pipeline(Readable.fromWeb(res.body as WebStream), counter, createWriteStream(dest))
     onProgress?.(received, total)
@@ -201,7 +202,7 @@ export class ManageMods {
   /** Primo indice a due cifre ("01"..."99") non ancora usato in `addons`. */
   private static async nextFreeIndex(addons: string): Promise<string> {
     const used = new Set(
-      (await readdir(addons)).map((f) => /^pak(\d{2})_/.exec(f)?.[1]).filter(Boolean),
+      (await readdir(addons)).map((f) => /^pak(\d{2})_/.exec(f)?.[1]).filter(Boolean)
     )
     for (let i = 1; i < 100; i++) {
       const n = String(i).padStart(2, '0')
@@ -219,7 +220,10 @@ export class ManageMods {
     const re = /(SearchPaths\s*\{\r?\n)/
     if (!re.test(text)) throw new AppError('error.searchPaths')
     await copyFile(path, `${path}.bak`, constants.COPYFILE_EXCL).catch(() => {})
-    await writeFile(path, text.replace(re, (m) => `${m}\t\t\tGame\t\t\t\tcitadel/addons\n`))
+    await writeFile(
+      path,
+      text.replace(re, (m) => `${m}\t\t\tGame\t\t\t\tcitadel/addons\n`)
+    )
   }
 
   public static uninstallMod(modId: string, gamePath: string): Promise<void> {
@@ -244,7 +248,11 @@ export class ManageMods {
    * Attiva o disattiva una mod. Disattivandola i file vengono spostati fuori da `addons`;
    * riattivandola tornano in `addons` con nuovi indici `pakNN` liberi.
    */
-  public static setEnabled(modId: string, enabled: boolean, gamePath: string): Promise<InstalledMod> {
+  public static setEnabled(
+    modId: string,
+    enabled: boolean,
+    gamePath: string
+  ): Promise<InstalledMod> {
     return this.exclusive(async () => {
       const manifest = await readManifest()
       const entry = manifest[modId]

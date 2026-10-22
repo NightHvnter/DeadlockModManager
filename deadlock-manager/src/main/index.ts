@@ -178,8 +178,7 @@ function registerIpc(): void {
         ? await dialog.showOpenDialog(window, options)
         : await dialog.showOpenDialog(options)
       if (canceled || !filePaths[0]) return null
-      if (!(await isValidGamePath(filePaths[0])))
-        throw new AppError('error.invalidGameFolder')
+      if (!(await isValidGamePath(filePaths[0]))) throw new AppError('error.invalidGameFolder')
       return writeSettings({ gamePath: filePaths[0] })
     })
   )

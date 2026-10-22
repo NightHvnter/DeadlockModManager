@@ -120,7 +120,8 @@ export const es: Messages = {
   'error.noFreeIndex': 'No queda ningún índice pakNN libre en addons',
   'error.searchPaths': 'No se encontró SearchPaths en gameinfo.gi',
   'error.api': 'Error de la API ({status})',
-  'error.syncIncomplete': 'Sincronización incompleta: leídos {got} de {expected} mods, se reintentará más tarde',
+  'error.syncIncomplete':
+    'Sincronización incompleta: leídos {got} de {expected} mods, se reintentará más tarde',
   'error.downloadFailed': 'Error en la descarga ({status})',
   'error.invalidPath': 'Ruta no válida en el archivo: {path}'
 }

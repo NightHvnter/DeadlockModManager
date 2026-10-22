@@ -1,7 +1,27 @@
 /** Tag mantenuti nelle descrizioni delle mod; tutti gli altri vengono sostituiti dal loro testo. */
 const ALLOWED = new Set([
-  'A', 'B', 'BR', 'STRONG', 'I', 'EM', 'U', 'S', 'P', 'UL', 'OL', 'LI',
-  'H1', 'H2', 'H3', 'H4', 'BLOCKQUOTE', 'CODE', 'PRE', 'SPAN', 'DIV', 'HR'
+  'A',
+  'B',
+  'BR',
+  'STRONG',
+  'I',
+  'EM',
+  'U',
+  'S',
+  'P',
+  'UL',
+  'OL',
+  'LI',
+  'H1',
+  'H2',
+  'H3',
+  'H4',
+  'BLOCKQUOTE',
+  'CODE',
+  'PRE',
+  'SPAN',
+  'DIV',
+  'HR'
 ])
 
 /** Elementi il cui contenuto va scartato del tutto. */

@@ -1,23 +1,56 @@
-import { type Mod } from ".";
+import { type Mod } from '.'
 
 export const HEROES = [
-  'Abrams', 'Apollo', 'Baba', 'Bebop', 'Billy', 'Calico', 'Celeste',
-  'Deadman Danny', 'Doorman', 'Drifter', 'Dynamo', 'Graves', 'Grey Talon',
-  'Haze', 'Holliday', 'Infernus', 'Ivy', 'Kelvin', 'Lady Geist', 'Lash',
-  'McGinnis', 'Mina', 'Mirage', 'Mo & Krill', 'Nurse Harrow', 'Paige',
-  'Paradox', 'Pocket', 'Rat King', 'Rem', 'Seven', 'Shiv', 'Silver',
-  'Sinclair', 'Solomon', 'Venator', 'Victor', 'Vindicta', 'Violet',
-  'Viscous', 'Vyper', 'Warden', 'Wraith', 'Wrecker', 'Yamato',
+  'Abrams',
+  'Apollo',
+  'Baba',
+  'Bebop',
+  'Billy',
+  'Calico',
+  'Celeste',
+  'Deadman Danny',
+  'Doorman',
+  'Drifter',
+  'Dynamo',
+  'Graves',
+  'Grey Talon',
+  'Haze',
+  'Holliday',
+  'Infernus',
+  'Ivy',
+  'Kelvin',
+  'Lady Geist',
+  'Lash',
+  'McGinnis',
+  'Mina',
+  'Mirage',
+  'Mo & Krill',
+  'Nurse Harrow',
+  'Paige',
+  'Paradox',
+  'Pocket',
+  'Rat King',
+  'Rem',
+  'Seven',
+  'Shiv',
+  'Silver',
+  'Sinclair',
+  'Solomon',
+  'Venator',
+  'Victor',
+  'Vindicta',
+  'Violet',
+  'Viscous',
+  'Vyper',
+  'Warden',
+  'Wraith',
+  'Wrecker',
+  'Yamato'
 ] as const
 
 export type Hero = (typeof HEROES)[number]
 
-export type ModSortField =
-  | 'downloadCount'
-  | 'likes'
-  | 'remoteAddedAt'
-  | 'remoteUpdatedAt'
-  | 'name'
+export type ModSortField = 'downloadCount' | 'likes' | 'remoteAddedAt' | 'remoteUpdatedAt' | 'name'
 
 /** Filtri applicabili alla ricerca delle mod. Tutti i campi sono opzionali. */
 export class ModFilters {

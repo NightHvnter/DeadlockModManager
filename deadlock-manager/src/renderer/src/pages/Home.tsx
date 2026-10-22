@@ -172,7 +172,9 @@ export default function Home(): React.JSX.Element {
 
         <Select value={type} onValueChange={onSelect(setType)}>
           <SelectTrigger className="w-36">
-            <SelectValue>{t(TYPE_OPTIONS.find((o) => o.value === type)?.label ?? 'home.allTypes')}</SelectValue>
+            <SelectValue>
+              {t(TYPE_OPTIONS.find((o) => o.value === type)?.label ?? 'home.allTypes')}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {TYPE_OPTIONS.map((o) => (
@@ -185,7 +187,9 @@ export default function Home(): React.JSX.Element {
 
         <Select value={sort} onValueChange={onSelect(setSort)}>
           <SelectTrigger className="w-52">
-            <SelectValue>{t(SORT_OPTIONS.find((o) => o.value === sort)?.label ?? 'sort.downloads')}</SelectValue>
+            <SelectValue>
+              {t(SORT_OPTIONS.find((o) => o.value === sort)?.label ?? 'sort.downloads')}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {SORT_OPTIONS.map((o) => (
@@ -203,12 +207,12 @@ export default function Home(): React.JSX.Element {
           <span>{t('home.loading')}</span>
         </div>
       ) : mods.length === 0 ? (
-        <div className="py-20 text-center text-muted-foreground">
-          {t('home.empty')}
-        </div>
+        <div className="py-20 text-center text-muted-foreground">{t('home.empty')}</div>
       ) : (
         <>
-          <div className="text-sm text-muted-foreground">{t('home.found', { count: formatNumber(total) })}</div>
+          <div className="text-sm text-muted-foreground">
+            {t('home.found', { count: formatNumber(total) })}
+          </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {mods.map((mod) => (
               <ModCard key={mod.id} mod={mod} onOpen={() => setSelected(mod)} />
@@ -219,9 +223,7 @@ export default function Home(): React.JSX.Element {
             <Button variant="outline" disabled={page <= 1} onClick={() => goTo(page - 1)}>
               {t('home.previous')}
             </Button>
-            <span className="text-sm">
-              {t('home.page', { page, total: totalPages })}
-            </span>
+            <span className="text-sm">{t('home.page', { page, total: totalPages })}</span>
             <Button variant="outline" disabled={page >= totalPages} onClick={() => goTo(page + 1)}>
               {t('home.next')}
             </Button>

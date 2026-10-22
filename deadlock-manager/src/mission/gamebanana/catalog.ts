@@ -1,6 +1,12 @@
 import { readFile, rename, writeFile } from 'node:fs/promises'
 import { AppError, describeError, type Language } from '../i18n'
-import { ModFilters, type Mod, type ModSearchResult, type Status, type SyncProgress } from '../types'
+import {
+  ModFilters,
+  type Mod,
+  type ModSearchResult,
+  type Status,
+  type SyncProgress
+} from '../types'
 import { gameBanana, HYDRATION_BATCH_SIZE, INDEX_PAGE_SIZE } from './client'
 import { modId, normalize } from './normalize'
 import { SUBMISSION_TYPES, type GbIndexRecord, type SubmissionType } from './types'
@@ -153,7 +159,9 @@ export class GameBananaCatalog {
           `${gameBanana.requests - requestsBefore} richieste, ${((Date.now() - started) / 1000).toFixed(1)} s`
       )
       if (changed === 0) return false
-      await this.saveToDisk().catch((e) => this.log(`salvataggio fallito: ${describeError(e, 'it')}`))
+      await this.saveToDisk().catch((e) =>
+        this.log(`salvataggio fallito: ${describeError(e, 'it')}`)
+      )
       this.onUpdate?.()
       return true
     } catch (e) {
@@ -170,7 +178,10 @@ export class GameBananaCatalog {
       batches.push(records.slice(i, i + HYDRATION_BATCH_SIZE))
     const results = await Promise.all(
       batches.map(async (batch) => {
-        const hydrations = await gameBanana.hydrate(type, batch.map((r) => r._idRow))
+        const hydrations = await gameBanana.hydrate(
+          type,
+          batch.map((r) => r._idRow)
+        )
         return batch.flatMap((record, i): Entry[] => {
           const hydration = hydrations[i]
           return hydration ? [{ mod: normalize(record, hydration), hydrated: true }] : []
@@ -197,8 +208,11 @@ export class GameBananaCatalog {
       SUBMISSION_TYPES.flatMap((type, i) =>
         Array.from({ length: pagesPerType[i] }, (_, p) => p + 1).map(async (page) => {
           const records =
-            page === 1 ? firsts[i]._aRecords : (await gameBanana.indexPage(type, page, false))._aRecords
-          for (const entry of await this.hydrateRecords(type, records)) next.set(entry.mod.id, entry)
+            page === 1
+              ? firsts[i]._aRecords
+              : (await gameBanana.indexPage(type, page, false))._aRecords
+          for (const entry of await this.hydrateRecords(type, records))
+            next.set(entry.mod.id, entry)
           for (const r of records)
             highWaterMarks[type] = Math.max(highWaterMarks[type], r._tsDateModified)
           this.progress!.done++
@@ -218,7 +232,10 @@ export class GameBananaCatalog {
         const ofType = unseen.filter((e) => e.mod.isAudio === (type === 'Sound'))
         for (let i = 0; i < ofType.length; i += HYDRATION_BATCH_SIZE) {
           const batch = ofType.slice(i, i + HYDRATION_BATCH_SIZE)
-          const alive = await gameBanana.hydrate(type, batch.map((e) => Number(e.mod.remoteId)))
+          const alive = await gameBanana.hydrate(
+            type,
+            batch.map((e) => Number(e.mod.remoteId))
+          )
           batch.forEach((e, j) => alive[j] && next.set(e.mod.id, e))
         }
       }
@@ -257,7 +274,8 @@ export class GameBananaCatalog {
         }
         if (_aMetadata._bIsComplete || _aRecords.some((r) => r._tsDateModified < mark)) break
       }
-      for (const entry of await this.hydrateRecords(type, toHydrate)) this.entries.set(entry.mod.id, entry)
+      for (const entry of await this.hydrateRecords(type, toHydrate))
+        this.entries.set(entry.mod.id, entry)
       this.highWaterMarks[type] = newest
       changed += toHydrate.length
     }
@@ -303,7 +321,8 @@ export class GameBananaCatalog {
     filtered.sort((a, b) => {
       const x = a[key]
       const y = b[key]
-      const cmp = typeof x === 'string' ? x.localeCompare(y as string) : (x as number) - (y as number)
+      const cmp =
+        typeof x === 'string' ? x.localeCompare(y as string) : (x as number) - (y as number)
       return cmp * dir
     })
 

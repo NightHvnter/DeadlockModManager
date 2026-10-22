@@ -1,8 +1,8 @@
-import { ThemeProvider } from "./components/providers/ThemeProvider"
-import { SettingsProvider } from "./components/providers/SettingsProvider"
-import { ModActionsProvider } from "./components/providers/ModActionsProvider"
+import { ThemeProvider } from './components/providers/ThemeProvider'
+import { SettingsProvider } from './components/providers/SettingsProvider'
+import { ModActionsProvider } from './components/providers/ModActionsProvider'
 import { Toaster } from '@/components/ui/sonner'
-import Router from "./router"
+import Router from './router'
 
 function App(): React.JSX.Element {
   return (

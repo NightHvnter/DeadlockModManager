@@ -12,7 +12,8 @@ export async function extractRar(rarPath: string, destDir: string): Promise<void
   const { files } = extractor.extract({
     files: ({ name, flags }) => {
       if (flags.directory || !name.toLowerCase().endsWith('.vpk')) return false
-      if (!resolve(destDir, name).startsWith(root)) throw new AppError('error.invalidPath', { path: name })
+      if (!resolve(destDir, name).startsWith(root))
+        throw new AppError('error.invalidPath', { path: name })
       return true
     }
   })

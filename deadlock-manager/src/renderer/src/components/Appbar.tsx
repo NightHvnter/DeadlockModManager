@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router'
-import { Download, LayoutGrid, Package} from 'lucide-react'
+import { Download, LayoutGrid, Package } from 'lucide-react'
 import { buttonVariants } from '@/components/ui/button'
 import { useI18n } from '@/hooks/useI18n'
 import { cn } from '@/lib/utils'
