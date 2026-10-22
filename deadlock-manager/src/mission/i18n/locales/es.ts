@@ -3,6 +3,14 @@ import type { Messages } from './it'
 export const es: Messages = {
   'nav.mods': 'Mods',
   'nav.installed': 'Instalados',
+  'play.button': 'Jugar',
+  'play.tooltip': 'Comprueba que los mods estén activos e inicia Deadlock con Steam',
+  'play.launching': 'Iniciando Deadlock con Steam...',
+  'gameinfo.repaired':
+    'Una actualización de Deadlock había desactivado los mods: se ha reparado gameinfo.gi',
+  'gameinfo.needsRepair':
+    'Una actualización de Deadlock desactivó los mods: a gameinfo.gi le falta la línea que los carga.',
+  'gameinfo.repair': 'Reparar',
 
   'settings.title': 'Ajustes',
   'settings.description': 'Personaliza los ajustes de la aplicación',
@@ -13,6 +21,9 @@ export const es: Messages = {
   'settings.openAddons': 'Abrir addons',
   'settings.gamePathHint':
     'La carpeta que contiene game/citadel, normalmente steamapps/common/Deadlock.',
+  'settings.autoRepair': 'Reparar gameinfo.gi automáticamente',
+  'settings.autoRepairHint':
+    'Las actualizaciones de Deadlock restauran gameinfo.gi al original y los mods dejan de cargarse. Al abrir la app y al pulsar Jugar, la app revisa el archivo y vuelve a añadir la línea de los mods. Los archivos del juego no se revisan en ningún otro momento.',
   'settings.language': 'Idioma',
   'settings.languageSystem': 'Idioma del sistema',
   'settings.theme': 'Tema',
@@ -94,6 +105,21 @@ export const es: Messages = {
   'installed.unavailable': 'Ya no disponible',
   'installed.enabled': 'Activo',
   'installed.update': 'Actualizar',
+  'installed.loadOrder': 'Orden de carga',
+  'loadOrder.tooltip':
+    'Elige qué mod tiene prioridad cuando varios mods cambian los mismos archivos',
+  'loadOrder.title': 'Orden de carga',
+  'loadOrder.description':
+    'Si dos mods contienen los mismos archivos, el juego usa los del mod que está más arriba. Arrastra los mods o usa las flechas para cambiar el orden.',
+  'loadOrder.highest': '↑ Prioridad más alta',
+  'loadOrder.lowest': '↓ Prioridad más baja',
+  'loadOrder.empty': 'No hay mods activos que ordenar.',
+  'loadOrder.disabledNote': 'Los mods desactivados no aparecen: al reactivarlos quedan al final.',
+  'loadOrder.moveUp': 'Subir',
+  'loadOrder.moveDown': 'Bajar',
+  'loadOrder.cancel': 'Cancelar',
+  'loadOrder.save': 'Guardar orden',
+  'loadOrder.saved': 'Orden de carga guardado',
 
   'notFound.title': 'Página no encontrada',
   'notFound.text': 'La página que buscas no existe.',
@@ -117,10 +143,12 @@ export const es: Messages = {
   'error.noDownloads': 'Este mod no tiene archivos descargables',
   'error.checksum': 'Checksum MD5 no válido: el archivo está dañado',
   'error.unsupportedFormat': 'Formato no compatible: {ext}',
-  'error.noVpk': 'No se encontró ningún archivo _dir.vpk en el mod',
+  'error.noVpk': 'Este mod no contiene archivos .vpk para instalar en addons',
   'error.noFreeIndex': 'No queda ningún índice pakNN libre en addons',
   'error.searchPaths': 'No se encontró SearchPaths en gameinfo.gi',
   'error.api': 'Error de la API ({status})',
+  'error.loadOrderChanged':
+    'Los mods activos han cambiado mientras tanto: vuelve a abrir el orden de carga',
   'error.syncIncomplete':
     'Sincronización incompleta: leídos {got} de {expected} mods, se reintentará más tarde',
   'error.downloadFailed': 'Error en la descarga ({status})',

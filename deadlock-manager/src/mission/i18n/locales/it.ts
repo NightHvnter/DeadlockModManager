@@ -2,6 +2,14 @@
 export const it = {
   'nav.mods': 'Mod',
   'nav.installed': 'Installate',
+  'play.button': 'Gioca',
+  'play.tooltip': 'Controlla che le mod siano attive e avvia Deadlock con Steam',
+  'play.launching': 'Avvio di Deadlock tramite Steam...',
+  'gameinfo.repaired':
+    'Un aggiornamento di Deadlock aveva disattivato le mod: gameinfo.gi è stato sistemato',
+  'gameinfo.needsRepair':
+    'Un aggiornamento di Deadlock ha disattivato le mod: in gameinfo.gi manca la riga che le carica.',
+  'gameinfo.repair': 'Ripara',
 
   'settings.title': 'Impostazioni',
   'settings.description': "Personalizza le impostazioni dell'applicazione",
@@ -12,6 +20,9 @@ export const it = {
   'settings.openAddons': 'Apri addons',
   'settings.gamePathHint':
     'La cartella che contiene game/citadel, di solito steamapps/common/Deadlock.',
+  'settings.autoRepair': 'Ripara gameinfo.gi automaticamente',
+  'settings.autoRepairHint':
+    "Gli aggiornamenti di Deadlock riportano gameinfo.gi all'originale e le mod smettono di caricarsi. All'apertura dell'app e quando premi Gioca, l'app controlla il file e rimette la riga delle mod. In nessun altro momento i file del gioco vengono controllati.",
   'settings.language': 'Lingua',
   'settings.languageSystem': 'Lingua di sistema',
   'settings.theme': 'Tema',
@@ -92,6 +103,21 @@ export const it = {
   'installed.unavailable': 'Non più disponibile',
   'installed.enabled': 'Attiva',
   'installed.update': 'Aggiorna',
+  'installed.loadOrder': 'Ordine di caricamento',
+  'loadOrder.tooltip': 'Scegli quale mod ha la priorità quando più mod modificano gli stessi file',
+  'loadOrder.title': 'Ordine di caricamento',
+  'loadOrder.description':
+    "Se due mod contengono gli stessi file, il gioco usa quelli della mod più in alto. Trascina le mod o usa le frecce per cambiare l'ordine.",
+  'loadOrder.highest': '↑ Priorità più alta',
+  'loadOrder.lowest': '↓ Priorità più bassa',
+  'loadOrder.empty': 'Nessuna mod attiva da ordinare.',
+  'loadOrder.disabledNote':
+    'Le mod disattivate non compaiono: quando le riattivi finiscono in fondo.',
+  'loadOrder.moveUp': 'Sposta su',
+  'loadOrder.moveDown': 'Sposta giù',
+  'loadOrder.cancel': 'Annulla',
+  'loadOrder.save': 'Salva ordine',
+  'loadOrder.saved': 'Ordine di caricamento salvato',
 
   'notFound.title': 'Pagina non trovata',
   'notFound.text': 'La pagina che cerchi non esiste.',
@@ -115,10 +141,12 @@ export const it = {
   'error.noDownloads': 'Nessun file scaricabile per questa mod',
   'error.checksum': 'Checksum MD5 non valido: file corrotto',
   'error.unsupportedFormat': 'Formato non supportato: {ext}',
-  'error.noVpk': 'Nessun file _dir.vpk trovato nella mod',
+  'error.noVpk': 'Questa mod non contiene file .vpk da installare in addons',
   'error.noFreeIndex': 'Nessun indice pakNN libero in addons',
   'error.searchPaths': 'SearchPaths non trovato in gameinfo.gi',
   'error.api': "Errore dell'API ({status})",
+  'error.loadOrderChanged':
+    "Le mod attive sono cambiate nel frattempo: riapri l'ordine di caricamento",
   'error.syncIncomplete':
     'Sincronizzazione incompleta: lette {got} mod su {expected}, riprovo più tardi',
   'error.downloadFailed': 'Download fallito ({status})',

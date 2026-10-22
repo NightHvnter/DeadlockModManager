@@ -1,9 +1,18 @@
-import { InstalledMod, Mod, ModChangelogEntry, ModDownload } from '../types'
+import { GameinfoStatus, InstalledMod, Mod, ModChangelogEntry, ModDownload } from '../types'
 import { AppError } from '../i18n'
 
 import { createHash } from 'node:crypto'
-import { constants, createReadStream, createWriteStream } from 'node:fs'
-import { copyFile, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { createReadStream, createWriteStream } from 'node:fs'
+import {
+  copyFile,
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rename,
+  rm,
+  writeFile
+} from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, dirname, extname, join } from 'node:path'
 import { Readable, Transform } from 'node:stream'
@@ -71,17 +80,28 @@ export class ManageMods {
       else if (ext === '.vpk') await copyFile(archive, join(extracted, basename(archive)))
       else throw new AppError('error.unsupportedFormat', { ext })
 
-      // 3. Copia dei VPK in addons con il prefisso pakNN
-      const vpks = (await readdir(extracted, { recursive: true })).filter((f) =>
-        f.toLowerCase().endsWith('_dir.vpk')
+      // 3. Copia dei VPK in addons con il prefisso pakNN. Due formati:
+      //    - VPK diviso: `<nome>_dir.vpk` più le parti `<nome>_000.vpk`, `<nome>_001.vpk`, ...
+      //    - VPK a file unico: `<nome>.vpk`, che il gioco carica rinominato `pakNN_dir.vpk`
+      const all = (await readdir(extracted, { recursive: true })).filter((f) =>
+        f.toLowerCase().endsWith('.vpk')
       )
-      if (vpks.length === 0) throw new AppError('error.noVpk')
+      const split = all.filter((f) => f.toLowerCase().endsWith('_dir.vpk'))
+      const single = all.filter(
+        (f) => !f.toLowerCase().endsWith('_dir.vpk') && !/_\d{3}\.vpk$/i.test(f)
+      )
+      if (split.length + single.length === 0) throw new AppError('error.noVpk')
 
       await mkdir(addons, { recursive: true })
-      for (const rel of vpks) {
+      for (const rel of split) {
         const dir = join(extracted, dirname(rel))
         const base = basename(rel).slice(0, -'_dir.vpk'.length)
         await this.placeVpkGroup(dir, base, addons, installed)
+      }
+      for (const rel of single) {
+        const target = `pak${await this.nextFreeIndex(addons)}_dir.vpk`
+        await copyFile(join(extracted, rel), join(addons, target))
+        installed.push(target)
       }
 
       // 4. Abilita la cartella addons nel gioco
@@ -114,7 +134,7 @@ export class ManageMods {
 
   /**
    * Copia in `addons` il `<base>_dir.vpk` di `dir` e le sue parti numerate (`<base>_000.vpk`, ...)
-   * con il primo prefisso `pakNN` libero, aggiungendo i nomi copiati a `placed`.
+   * con il prefisso `pakNN` dato da `nextFreeIndex`, aggiungendo i nomi copiati a `placed`.
    */
   private static async placeVpkGroup(
     dir: string,
@@ -199,15 +219,19 @@ export class ManageMods {
     return hash.digest('hex')
   }
 
-  /** Primo indice a due cifre ("01"..."99") non ancora usato in `addons`. */
+  /**
+   * Indice a due cifre ("01"..."99") per una mod nuova o riattivata: quello dopo il più alto
+   * già usato in `addons`, così finisce in fondo all'ordine di caricamento (priorità più bassa)
+   * invece di occupare un buco lasciato da una mod disattivata. Se dopo non c'è posto, usa il
+   * primo indice libero.
+   */
   private static async nextFreeIndex(addons: string): Promise<string> {
-    const used = new Set(
-      (await readdir(addons)).map((f) => /^pak(\d{2})_/.exec(f)?.[1]).filter(Boolean)
-    )
-    for (let i = 1; i < 100; i++) {
-      const n = String(i).padStart(2, '0')
-      if (!used.has(n)) return n
-    }
+    const used = (await readdir(addons))
+      .map((f) => Number(/^pak(\d{2})_/.exec(f)?.[1]))
+      .filter((n) => n > 0)
+    const after = Math.max(0, ...used) + 1
+    if (after < 100) return String(after).padStart(2, '0')
+    for (let i = 1; i < 100; i++) if (!used.includes(i)) return String(i).padStart(2, '0')
     throw new AppError('error.noFreeIndex')
   }
 
@@ -219,11 +243,31 @@ export class ManageMods {
 
     const re = /(SearchPaths\s*\{\r?\n)/
     if (!re.test(text)) throw new AppError('error.searchPaths')
-    await copyFile(path, `${path}.bak`, constants.COPYFILE_EXCL).catch(() => {})
+    // Senza la riga il file è quello originale di Steam (anche dopo un aggiornamento del gioco):
+    // il backup viene rifatto ogni volta, così non resta la copia di una versione vecchia.
+    await copyFile(path, `${path}.bak`)
     await writeFile(
       path,
       text.replace(re, (m) => `${m}\t\t\tGame\t\t\t\tcitadel/addons\n`)
     )
+  }
+
+  /**
+   * Controlla che `gameinfo.gi` carichi le mod: gli aggiornamenti di Deadlock e la verifica dei
+   * file di Steam lo riportano all'originale, togliendo la riga `Game citadel/addons`. Legge il
+   * file una volta sola; con `repair` rimette la riga se manca.
+   */
+  public static checkGameinfo(gamePath: string, repair: boolean): Promise<GameinfoStatus> {
+    return this.exclusive(async () => {
+      const enabled = Object.values(await readManifest()).some((e) => e.enabled)
+      if (!enabled) return 'notNeeded'
+      const citadel = join(gamePath, 'game', 'citadel')
+      const text = await readFile(join(citadel, 'gameinfo.gi'), 'utf8')
+      if (/^\s*Game\s+citadel\/addons\s*$/m.test(text)) return 'ok'
+      if (!repair) return 'needsRepair'
+      await this.ensureAddonsSearchPath(citadel)
+      return 'repaired'
+    })
   }
 
   public static uninstallMod(modId: string, gamePath: string): Promise<void> {
@@ -292,4 +336,95 @@ export class ManageMods {
       return entry
     })
   }
+
+  /**
+   * Mod attive nell'ordine di caricamento: prima quella con l'indice `pakNN` più basso, che ha
+   * la priorità quando due mod contengono gli stessi file.
+   */
+  public static async getLoadOrder(): Promise<InstalledMod[]> {
+    const manifest = await readManifest()
+    return Object.values(manifest)
+      .filter((e) => e.enabled)
+      .sort((a, b) => lowestPakIndex(a.files) - lowestPakIndex(b.files))
+  }
+
+  /**
+   * Riassegna gli indici `pakNN` delle mod attive nell'ordine di `modIds` (la prima riceve
+   * l'indice libero più basso). Gli indici occupati da file non installati dall'app restano
+   * intatti. Le rinomine avvengono in due passaggi, tramite nomi temporanei, così due mod non
+   * si scontrano mai sullo stesso nome; se una rinomina fallisce, quelle già fatte vengono
+   * annullate.
+   * @throws Se `modIds` non contiene esattamente le mod attive
+   */
+  public static setLoadOrder(modIds: string[], gamePath: string): Promise<InstalledMod[]> {
+    return this.exclusive(async () => {
+      const manifest = await readManifest()
+      const enabled = Object.values(manifest).filter((e) => e.enabled)
+      if (
+        modIds.length !== enabled.length ||
+        new Set(modIds).size !== modIds.length ||
+        modIds.some((id) => !manifest[id]?.enabled)
+      )
+        throw new AppError('error.loadOrderChanged')
+
+      const addons = join(gamePath, 'game', 'citadel', 'addons')
+      const managed = new Set(enabled.flatMap((e) => e.files))
+      const takenByOthers = new Set(
+        (await readdir(addons).catch(() => []))
+          .filter((f) => !managed.has(f))
+          .map((f) => /^pak(\d{2})_/.exec(f)?.[1])
+          .filter(Boolean)
+      )
+      const free = Array.from({ length: 99 }, (_, i) => String(i + 1).padStart(2, '0')).filter(
+        (n) => !takenByOthers.has(n)
+      )
+
+      // nuovo nome di ogni file: ogni gruppo pakNN di ogni mod riceve il prossimo indice libero
+      const renames: { from: string; to: string }[] = []
+      const newFiles = new Map<string, string[]>()
+      for (const id of modIds) {
+        const files = manifest[id].files
+        const prefixes = [...new Set(files.map((f) => /^(pak\d{2})_/.exec(f)?.[1]))]
+          .filter((p): p is string => !!p)
+          .sort()
+        const renamed: string[] = []
+        for (const prefix of prefixes) {
+          const index = free.shift()
+          if (!index) throw new AppError('error.noFreeIndex')
+          for (const f of files.filter((f) => f.startsWith(`${prefix}_`))) {
+            const to = `pak${index}${f.slice(prefix.length)}`
+            renamed.push(to)
+            if (to !== f) renames.push({ from: f, to })
+          }
+        }
+        newFiles.set(id, renamed)
+      }
+
+      const tmp = (f: string): string => `__dmm_reorder_${f}`
+      const done: { from: string; to: string }[] = []
+      try {
+        for (const r of renames) {
+          await rename(join(addons, r.from), join(addons, tmp(r.from)))
+          done.push({ from: r.from, to: tmp(r.from) })
+        }
+        for (const r of renames) {
+          await rename(join(addons, tmp(r.from)), join(addons, r.to))
+          done.push({ from: tmp(r.from), to: r.to })
+        }
+      } catch (e) {
+        for (const r of done.reverse())
+          await rename(join(addons, r.to), join(addons, r.from)).catch(() => {})
+        throw e
+      }
+
+      for (const [id, files] of newFiles) manifest[id].files = files
+      await writeManifest(manifest)
+      return modIds.map((id) => manifest[id])
+    })
+  }
+}
+
+/** Indice `pakNN` più basso tra i file di una mod; `100` se nessun file ha quel formato. */
+function lowestPakIndex(files: string[]): number {
+  return Math.min(100, ...files.map((f) => Number(/^pak(\d{2})_/.exec(f)?.[1] ?? 100)))
 }

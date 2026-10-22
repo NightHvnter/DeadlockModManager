@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { toast } from 'sonner'
-import { FolderOpen } from 'lucide-react'
+import { FolderOpen, ListOrdered } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import Spinner from '@/components/Spinner'
+import LoadOrderDialog from '@/components/LoadOrderDialog'
 import { useI18n } from '@/hooks/useI18n'
 import { useModActions } from '@/hooks/useModActions'
 import type { InstalledModInfo } from '../../../mission/types'
@@ -18,6 +19,7 @@ export default function Installed(): React.JSX.Element {
   const [mods, setMods] = useState<InstalledModInfo[] | null>(null)
   const [search, setSearch] = useState('')
   const { t, formatDate } = useI18n()
+  const [loadOrderOpen, setLoadOrderOpen] = useState(false)
 
   // ricarica l'elenco a ogni installazione, disinstallazione o cambio di stato
   useEffect(() => {
@@ -62,11 +64,24 @@ export default function Installed(): React.JSX.Element {
           {t('installed.count', { count: mods.length })}
           {updates > 0 && t('installed.toUpdate', { count: updates })}
         </span>
-        <Button variant="outline" size="sm" className="ml-auto" onClick={openAddons}>
+        <Button
+          variant="outline"
+          size="sm"
+          className="ml-auto"
+          title={t('loadOrder.tooltip')}
+          disabled={mods.filter((m) => m.enabled).length < 2}
+          onClick={() => setLoadOrderOpen(true)}
+        >
+          <ListOrdered className="size-4" />
+          {t('installed.loadOrder')}
+        </Button>
+        <Button variant="outline" size="sm" onClick={openAddons}>
           <FolderOpen className="size-4" />
           {t('installed.openAddons')}
         </Button>
       </div>
+
+      <LoadOrderDialog open={loadOrderOpen} onOpenChange={setLoadOrderOpen} />
 
       {mods.length === 0 ? (
         <div className="flex flex-col items-center gap-4 py-20 text-muted-foreground">

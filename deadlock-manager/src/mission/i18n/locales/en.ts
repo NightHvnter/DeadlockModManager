@@ -3,6 +3,13 @@ import type { Messages } from './it'
 export const en: Messages = {
   'nav.mods': 'Mods',
   'nav.installed': 'Installed',
+  'play.button': 'Play',
+  'play.tooltip': 'Check that mods are enabled and launch Deadlock through Steam',
+  'play.launching': 'Launching Deadlock through Steam...',
+  'gameinfo.repaired': 'A Deadlock update had disabled your mods: gameinfo.gi has been fixed',
+  'gameinfo.needsRepair':
+    'A Deadlock update disabled your mods: gameinfo.gi is missing the line that loads them.',
+  'gameinfo.repair': 'Repair',
 
   'settings.title': 'Settings',
   'settings.description': 'Customize the application settings',
@@ -13,6 +20,9 @@ export const en: Messages = {
   'settings.openAddons': 'Open addons',
   'settings.gamePathHint':
     'The folder that contains game/citadel, usually steamapps/common/Deadlock.',
+  'settings.autoRepair': 'Repair gameinfo.gi automatically',
+  'settings.autoRepairHint':
+    'Deadlock updates restore gameinfo.gi to the original and mods stop loading. When the app opens and when you press Play, the app checks the file and puts the mods line back. The game files are not checked at any other time.',
   'settings.language': 'Language',
   'settings.languageSystem': 'System language',
   'settings.theme': 'Theme',
@@ -93,6 +103,21 @@ export const en: Messages = {
   'installed.unavailable': 'No longer available',
   'installed.enabled': 'Enabled',
   'installed.update': 'Update',
+  'installed.loadOrder': 'Load order',
+  'loadOrder.tooltip': 'Choose which mod wins when several mods change the same files',
+  'loadOrder.title': 'Load order',
+  'loadOrder.description':
+    'If two mods contain the same files, the game uses the ones from the mod higher in the list. Drag mods or use the arrows to change the order.',
+  'loadOrder.highest': '↑ Highest priority',
+  'loadOrder.lowest': '↓ Lowest priority',
+  'loadOrder.empty': 'No enabled mods to order.',
+  'loadOrder.disabledNote':
+    'Disabled mods are not listed: when you enable them again they go to the bottom.',
+  'loadOrder.moveUp': 'Move up',
+  'loadOrder.moveDown': 'Move down',
+  'loadOrder.cancel': 'Cancel',
+  'loadOrder.save': 'Save order',
+  'loadOrder.saved': 'Load order saved',
 
   'notFound.title': 'Page not found',
   'notFound.text': "The page you're looking for doesn't exist.",
@@ -116,10 +141,11 @@ export const en: Messages = {
   'error.noDownloads': 'This mod has no downloadable files',
   'error.checksum': 'Invalid MD5 checksum: the file is corrupted',
   'error.unsupportedFormat': 'Unsupported format: {ext}',
-  'error.noVpk': 'No _dir.vpk file found in the mod',
+  'error.noVpk': 'This mod has no .vpk files to install in addons',
   'error.noFreeIndex': 'No free pakNN index left in addons',
   'error.searchPaths': 'SearchPaths not found in gameinfo.gi',
   'error.api': 'API error ({status})',
+  'error.loadOrderChanged': 'The enabled mods changed in the meantime: reopen the load order',
   'error.syncIncomplete': 'Incomplete sync: read {got} of {expected} mods, retrying later',
   'error.downloadFailed': 'Download failed ({status})',
   'error.invalidPath': 'Invalid path in the archive: {path}'

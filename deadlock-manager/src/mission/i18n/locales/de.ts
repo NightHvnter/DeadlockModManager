@@ -3,6 +3,14 @@ import type { Messages } from './it'
 export const de: Messages = {
   'nav.mods': 'Mods',
   'nav.installed': 'Installiert',
+  'play.button': 'Spielen',
+  'play.tooltip': 'Prüft, ob die Mods aktiv sind, und startet Deadlock über Steam',
+  'play.launching': 'Deadlock wird über Steam gestartet...',
+  'gameinfo.repaired':
+    'Ein Deadlock-Update hatte deine Mods deaktiviert: gameinfo.gi wurde repariert',
+  'gameinfo.needsRepair':
+    'Ein Deadlock-Update hat deine Mods deaktiviert: In gameinfo.gi fehlt die Zeile, die sie lädt.',
+  'gameinfo.repair': 'Reparieren',
 
   'settings.title': 'Einstellungen',
   'settings.description': 'Passe die Einstellungen der Anwendung an',
@@ -13,6 +21,9 @@ export const de: Messages = {
   'settings.openAddons': 'Addons öffnen',
   'settings.gamePathHint':
     'Der Ordner, der game/citadel enthält, normalerweise steamapps/common/Deadlock.',
+  'settings.autoRepair': 'gameinfo.gi automatisch reparieren',
+  'settings.autoRepairHint':
+    'Deadlock-Updates setzen gameinfo.gi auf das Original zurück und Mods werden nicht mehr geladen. Beim Öffnen der App und wenn du auf Spielen drückst, prüft die App die Datei und fügt die Mod-Zeile wieder ein. Zu keinem anderen Zeitpunkt werden Spieldateien geprüft.',
   'settings.language': 'Sprache',
   'settings.languageSystem': 'Systemsprache',
   'settings.theme': 'Design',
@@ -93,6 +104,21 @@ export const de: Messages = {
   'installed.unavailable': 'Nicht mehr verfügbar',
   'installed.enabled': 'Aktiv',
   'installed.update': 'Aktualisieren',
+  'installed.loadOrder': 'Ladereihenfolge',
+  'loadOrder.tooltip': 'Wähle, welche Mod Vorrang hat, wenn mehrere Mods dieselben Dateien ändern',
+  'loadOrder.title': 'Ladereihenfolge',
+  'loadOrder.description':
+    'Enthalten zwei Mods dieselben Dateien, verwendet das Spiel die der weiter oben stehenden Mod. Ziehe die Mods oder nutze die Pfeile, um die Reihenfolge zu ändern.',
+  'loadOrder.highest': '↑ Höchste Priorität',
+  'loadOrder.lowest': '↓ Niedrigste Priorität',
+  'loadOrder.empty': 'Keine aktiven Mods zum Sortieren.',
+  'loadOrder.disabledNote':
+    'Deaktivierte Mods werden nicht angezeigt: Nach dem erneuten Aktivieren landen sie ganz unten.',
+  'loadOrder.moveUp': 'Nach oben',
+  'loadOrder.moveDown': 'Nach unten',
+  'loadOrder.cancel': 'Abbrechen',
+  'loadOrder.save': 'Reihenfolge speichern',
+  'loadOrder.saved': 'Ladereihenfolge gespeichert',
 
   'notFound.title': 'Seite nicht gefunden',
   'notFound.text': 'Die gesuchte Seite existiert nicht.',
@@ -116,10 +142,12 @@ export const de: Messages = {
   'error.noDownloads': 'Diese Mod hat keine herunterladbaren Dateien',
   'error.checksum': 'Ungültige MD5-Prüfsumme: Datei beschädigt',
   'error.unsupportedFormat': 'Nicht unterstütztes Format: {ext}',
-  'error.noVpk': 'Keine _dir.vpk-Datei in der Mod gefunden',
+  'error.noVpk': 'Diese Mod enthält keine .vpk-Dateien zum Installieren in addons',
   'error.noFreeIndex': 'Kein freier pakNN-Index in addons',
   'error.searchPaths': 'SearchPaths in gameinfo.gi nicht gefunden',
   'error.api': 'API-Fehler ({status})',
+  'error.loadOrderChanged':
+    'Die aktiven Mods haben sich inzwischen geändert: Öffne die Ladereihenfolge erneut',
   'error.syncIncomplete':
     'Unvollständige Synchronisierung: {got} von {expected} Mods gelesen, später erneut versuchen',
   'error.downloadFailed': 'Download fehlgeschlagen ({status})',

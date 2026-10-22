@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="1024" height="1024">
+  <!-- Sorgente dell'icona di Deadlock Mod Manager: da qui si generano icon.png, icon.ico e icon.icns -->
+  <rect width="200" height="200" rx="44" fill="#14161c"/>
+
+  <!-- cubo isometrico in ottone: faccia superiore chiara, sinistra media, destra scura -->
+  <polygon points="100,22 168,61 100,100 32,61" fill="#e3c272"/>
+  <polygon points="32,61 100,100 100,178 32,139" fill="#c9a14a"/>
+  <polygon points="100,100 168,61 168,139 100,178" fill="#8f6d27"/>
+
+  <!-- D "stampata" sulla faccia sinistra: disegnata in un quadrato 100x100 e proiettata sulla faccia
+       con una trasformazione affine (asse u lungo lo spigolo superiore, asse v lungo quello verticale) -->
+  <g transform="matrix(0.68 0.39 0 0.78 32 61)">
+    <path fill="#2b200b" fill-rule="evenodd"
+          d="M26 16 h20 a34 34 0 0 1 0 68 h-20 z M42 32 h4 a18 18 0 0 1 0 36 h-4 z"/>
+  </g>
+
+  <!-- spigoli in luce -->
+  <polygon points="100,22 168,61 168,139 100,178 32,139 32,61" fill="none" stroke="#f0dca6" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M32 61 L100 100 L168 61 M100 100 L100 178" fill="none" stroke="#f0dca6" stroke-width="2" stroke-linejoin="round" opacity="0.55"/>
+</svg>

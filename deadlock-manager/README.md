@@ -25,12 +25,32 @@ il suo file e registrarla in `LANGUAGES` e `MESSAGES` in `src/mission/i18n/index
 
 1. I file della mod vengono letti dalla sua pagina su GameBanana (`apiv11/{Mod|Sound}/<id>/ProfilePage`);
    il file scelto viene scaricato e verificato con l'MD5.
-2. I file `*_dir.vpk` (e le parti `*_000.vpk`, ...) vengono copiati in `game/citadel/addons`
-   rinominati `pakNN_dir.vpk` con il primo indice libero.
+2. I VPK vengono copiati in `game/citadel/addons` rinominati `pakNN_dir.vpk`, con l'indice
+   successivo al più alto già usato (la mod nuova finisce in fondo all'ordine di caricamento).
+   Sono supportati sia i VPK divisi (`*_dir.vpk` più le parti `*_000.vpk`, ...) sia quelli a
+   file unico (`*.vpk`).
 3. Se manca, viene aggiunta la riga `Game citadel/addons` a `game/citadel/gameinfo.gi`
    (l'originale viene salvato in `gameinfo.gi.bak`).
 4. I file installati sono registrati in `installed.json` nella cartella dati dell'app.
    Le mod disattivate vengono spostate in `disabled/<id>` nella stessa cartella.
+
+## Aggiornamenti del gioco e `gameinfo.gi`
+
+Gli aggiornamenti di Deadlock (e la verifica dei file di Steam) riportano `gameinfo.gi`
+all'originale, togliendo la riga `Game citadel/addons`: le mod restano installate ma il gioco
+non le carica più. L'app controlla il file **solo all'apertura e quando si preme "Gioca"**
+(mai in background) e, se ci sono mod attive e la riga manca, la rimette aggiornando prima il
+backup `gameinfo.gi.bak`. La riparazione automatica si può disattivare nelle impostazioni: in
+quel caso compare un avviso con il pulsante "Ripara". "Gioca" avvia poi Deadlock tramite Steam
+(`steam://rungameid/1422450`).
+
+## Ordine di caricamento
+
+Se due mod contengono gli stessi file, il gioco usa quelli della mod con l'indice `pakNN` più
+basso. Dalla pagina **Installate** → **Ordine di caricamento** si riordinano le mod attive
+(trascinandole o con le frecce): al salvataggio gli indici vengono riassegnati nell'ordine
+scelto, `pak01` alla mod in cima. I file in `addons` non installati dall'app non vengono
+toccati. Le mod disattivate non compaiono e, quando vengono riattivate, finiscono in fondo.
 
 ## Elenco delle mod
 

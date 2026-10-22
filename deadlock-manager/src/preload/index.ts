@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import type {
+  GameinfoStatus,
   InstalledMod,
   InstalledModInfo,
   InstallProgress,
@@ -39,6 +40,10 @@ const api = {
     ipcRenderer.invoke('mods:setEnabled', modId, enabled),
   getInstalledMods: (): Promise<string[]> => ipcRenderer.invoke('mods:installed'),
   getInstalledModsInfo: (): Promise<InstalledModInfo[]> => ipcRenderer.invoke('mods:installedInfo'),
+  /** Mod attive dalla priorità più alta (`pak01`) alla più bassa. */
+  getLoadOrder: (): Promise<InstalledMod[]> => ipcRenderer.invoke('mods:loadOrder'),
+  setLoadOrder: (modIds: string[]): Promise<IpcResult<InstalledMod[]>> =>
+    ipcRenderer.invoke('mods:setLoadOrder', modIds),
   getCategories: (): Promise<string[]> => ipcRenderer.invoke('mods:categories'),
   /** Registra `listener` per l'avanzamento dei download; restituisce la funzione per rimuoverlo. */
   onInstallProgress: (listener: (progress: InstallProgress) => void): (() => void) => {
@@ -54,7 +59,15 @@ const api = {
   /** Apre la scelta della cartella; `data` è `null` se l'utente annulla. */
   browseGamePath: (): Promise<IpcResult<Settings | null>> =>
     ipcRenderer.invoke('settings:browseGamePath'),
-  openAddonsFolder: (): Promise<IpcResult<null>> => ipcRenderer.invoke('settings:openAddons')
+  openAddonsFolder: (): Promise<IpcResult<null>> => ipcRenderer.invoke('settings:openAddons'),
+
+  /** Controlla `gameinfo.gi` (e lo ripara se la riparazione automatica è attiva). */
+  checkGameinfo: (): Promise<IpcResult<GameinfoStatus>> => ipcRenderer.invoke('game:checkGameinfo'),
+  /** Rimette in `gameinfo.gi` la riga che carica le mod, anche con la riparazione automatica spenta. */
+  repairGameinfo: (): Promise<IpcResult<GameinfoStatus>> =>
+    ipcRenderer.invoke('game:repairGameinfo'),
+  /** Controlla `gameinfo.gi` e avvia Deadlock tramite Steam. */
+  play: (): Promise<IpcResult<GameinfoStatus>> => ipcRenderer.invoke('game:play')
 }
 
 export type Api = typeof api
