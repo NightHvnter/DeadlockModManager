@@ -19,6 +19,7 @@ import { Readable, Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import type { ReadableStream as WebStream } from 'node:stream/web'
 import { disabledDir, readManifest, writeManifest } from './manifest'
+import { isPatched, patch } from './gameinfo'
 import { extractZip as extract } from '../func/extractZip'
 import { extractRar } from '../func/extractRar'
 import { gameBanana, parseModId } from '../gamebanana'
@@ -235,27 +236,25 @@ export class ManageMods {
     throw new AppError('error.noFreeIndex')
   }
 
-  /** Aggiunge `Game citadel/addons` a `gameinfo.gi` (con backup `.bak`) se manca. */
+  /**
+   * Fa caricare a Deadlock le mod di `addons` modificando `gameinfo.gi` (vedi `./gameinfo`).
+   * Prima di scrivere salva nel backup `.bak` la versione originale, senza le righe dell'app:
+   * così dopo un aggiornamento del gioco il backup è sempre quello della versione corrente.
+   */
   private static async ensureAddonsSearchPath(citadel: string): Promise<void> {
     const path = join(citadel, 'gameinfo.gi')
     const text = await readFile(path, 'utf8')
-    if (/^\s*Game\s+citadel\/addons\s*$/m.test(text)) return
-
-    const re = /(SearchPaths\s*\{\r?\n)/
-    if (!re.test(text)) throw new AppError('error.searchPaths')
-    // Senza la riga il file è quello originale di Steam (anche dopo un aggiornamento del gioco):
-    // il backup viene rifatto ogni volta, così non resta la copia di una versione vecchia.
-    await copyFile(path, `${path}.bak`)
-    await writeFile(
-      path,
-      text.replace(re, (m) => `${m}\t\t\tGame\t\t\t\tcitadel/addons\n`)
-    )
+    if (isPatched(text)) return
+    const { patched, original } = patch(text)
+    await writeFile(`${path}.bak`, original)
+    await writeFile(path, patched)
   }
 
   /**
    * Controlla che `gameinfo.gi` carichi le mod: gli aggiornamenti di Deadlock e la verifica dei
-   * file di Steam lo riportano all'originale, togliendo la riga `Game citadel/addons`. Legge il
-   * file una volta sola; con `repair` rimette la riga se manca.
+   * file di Steam lo riportano all'originale, togliendo le righe dell'app. Ripara anche i file
+   * modificati dalle versioni precedenti dell'app, che rendevano `addons` la cartella principale
+   * del gioco. Legge il file una volta sola; con `repair` lo sistema se serve.
    */
   public static checkGameinfo(gamePath: string, repair: boolean): Promise<GameinfoStatus> {
     return this.exclusive(async () => {
@@ -263,7 +262,7 @@ export class ManageMods {
       if (!enabled) return 'notNeeded'
       const citadel = join(gamePath, 'game', 'citadel')
       const text = await readFile(join(citadel, 'gameinfo.gi'), 'utf8')
-      if (/^\s*Game\s+citadel\/addons\s*$/m.test(text)) return 'ok'
+      if (isPatched(text)) return 'ok'
       if (!repair) return 'needsRepair'
       await this.ensureAddonsSearchPath(citadel)
       return 'repaired'
