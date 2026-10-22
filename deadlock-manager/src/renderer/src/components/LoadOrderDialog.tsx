@@ -34,7 +34,7 @@ export default function LoadOrderDialog({
 }: LoadOrderDialogProps): React.JSX.Element {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-fit">
         {/* montato solo da aperto: a ogni apertura l'ordine viene riletto da zero */}
         {open && <LoadOrderEditor onClose={() => onOpenChange(false)} />}
       </DialogContent>
