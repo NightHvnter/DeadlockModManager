@@ -126,7 +126,44 @@
   }
   html {
     @apply font-sans;
+    /* controlli nativi (es. il lettore audio) chiari o scuri come il tema */
+    color-scheme: light;
   }
+  .dark {
+    color-scheme: dark;
+  }
+}
+
+/*
+ * Scrollbar sottili e arrotondate che seguono il tema: i colori derivano da --foreground e
+ * --primary, quindi cambiano da soli con chiaro, scuro e temi custom.
+ * Non si usa `scrollbar-color`: in Chromium, se è impostato, le regole ::-webkit-scrollbar
+ * vengono ignorate e non si potrebbe arrotondare il cursore.
+ */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  /* il bordo trasparente crea il margine attorno al cursore */
+  border: 2px solid transparent;
+  border-radius: 9999px;
+  background-color: color-mix(in oklch, var(--foreground) 22%, transparent);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in oklch, var(--foreground) 38%, transparent);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background-color: color-mix(in oklch, var(--primary) 75%, transparent);
 }
 
 .theme-ocean {
