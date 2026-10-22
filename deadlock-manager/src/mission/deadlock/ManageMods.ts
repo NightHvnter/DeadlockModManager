@@ -1,4 +1,12 @@
-import { GameinfoStatus, InstalledMod, Mod, ModChangelogEntry, ModDownload } from '../types'
+import {
+  GameinfoStatus,
+  InstalledMod,
+  InterfaceColors,
+  InterfaceColorsResult,
+  Mod,
+  ModChangelogEntry,
+  ModDownload
+} from '../types'
 import { AppError } from '../i18n'
 
 import { createHash } from 'node:crypto'
@@ -23,6 +31,13 @@ import { isPatched, patch } from './gameinfo'
 import { extractZip as extract } from '../func/extractZip'
 import { extractRar } from '../func/extractRar'
 import { gameBanana, parseModId } from '../gamebanana'
+import {
+  buildColorStyles,
+  hasCustomColors,
+  readColorsState,
+  writeColorsState
+} from './interfaceColors'
+import { buildVpk } from './vpk'
 const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 /** Chiamata con i byte ricevuti e quelli totali (`0` se sconosciuti) durante il download. */
@@ -259,13 +274,63 @@ export class ManageMods {
   public static checkGameinfo(gamePath: string, repair: boolean): Promise<GameinfoStatus> {
     return this.exclusive(async () => {
       const enabled = Object.values(await readManifest()).some((e) => e.enabled)
-      if (!enabled) return 'notNeeded'
+      if (!enabled && !(await readColorsState()).file) return 'notNeeded'
       const citadel = join(gamePath, 'game', 'citadel')
       const text = await readFile(join(citadel, 'gameinfo.gi'), 'utf8')
       if (isPatched(text)) return 'ok'
       if (!repair) return 'needsRepair'
       await this.ensureAddonsSearchPath(citadel)
       return 'repaired'
+    })
+  }
+
+  /**
+   * Genera in `addons` il VPK con gli stili Panorama ricolorati secondo `colors` (vedi
+   * `./interfaceColors`), partendo dai file attuali del gioco e delle mod: va rifatto dopo ogni
+   * aggiornamento di Deadlock. Il VPK tiene lo stesso `pakNN` finché esiste; senza colori
+   * cambiati viene tolto.
+   */
+  public static applyInterfaceColors(
+    gamePath: string,
+    colors: InterfaceColors
+  ): Promise<InterfaceColorsResult> {
+    return this.exclusive(async () => {
+      const citadel = join(gamePath, 'game', 'citadel')
+      const addons = join(citadel, 'addons')
+      const state = await readColorsState()
+      const manifest = await readManifest()
+      const remove = async (): Promise<void> => {
+        if (state.file) await rm(join(addons, state.file), { force: true })
+        await writeColorsState({ file: null })
+      }
+
+      if (!hasCustomColors(colors)) {
+        await remove()
+        return { file: null, styles: 0, conflicts: [] }
+      }
+
+      await mkdir(addons, { recursive: true })
+      const present = await readdir(addons)
+      // il nome salvato si riusa solo se il file c'è ancora e non è stato preso da una mod
+      const reusable =
+        state.file &&
+        present.includes(state.file) &&
+        !Object.values(manifest).some((e) => e.files.includes(state.file!))
+      const file = reusable ? state.file! : `pak${await this.nextFreeIndex(addons)}_dir.vpk`
+
+      const { styles, conflicts } = await buildColorStyles(citadel, colors, file)
+      const conflictNames = conflicts.map(
+        (f) => Object.values(manifest).find((e) => e.enabled && e.files.includes(f))?.name ?? f
+      )
+      if (styles.size === 0) {
+        await remove()
+        return { file: null, styles: 0, conflicts: conflictNames }
+      }
+
+      await writeFile(join(addons, file), buildVpk(styles))
+      await writeColorsState({ file })
+      await this.ensureAddonsSearchPath(citadel)
+      return { file, styles: styles.size, conflicts: conflictNames }
     })
   }
 

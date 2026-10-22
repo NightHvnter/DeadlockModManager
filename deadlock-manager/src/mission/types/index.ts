@@ -11,3 +11,11 @@ export type { IpcResult } from './Ipc'
 export { type Settings, DEFAULT_SETTINGS } from './Settings'
 export type { InstalledMod, InstalledModInfo, InstallProgress } from './Installed'
 export type { GameinfoStatus } from './Game'
+export {
+  COLOR_SLOTS,
+  COLOR_SLOT_IDS,
+  type ColorSlot,
+  type ColorTarget,
+  type InterfaceColors,
+  type InterfaceColorsResult
+} from './InterfaceColors'
