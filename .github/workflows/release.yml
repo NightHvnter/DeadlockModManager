@@ -11,9 +11,41 @@ on:
 permissions:
   contents: write
 
+env:
+  TAG: ${{ github.ref_name }}
+
 jobs:
+  # La bozza viene creata una sola volta, prima delle build: se ogni build la cercasse e la
+  # creasse da sé, partendo insieme ne creerebbero una a testa per lo stesso tag.
+  release:
+    name: Create draft release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check that the tag matches package.json
+        run: |
+          version="v$(node -p "require('./deadlock-manager/package.json').version")"
+          if [ "$version" != "$TAG" ]; then
+            echo "::error::Tag $TAG does not match package.json version ($version)"
+            exit 1
+          fi
+
+      - name: Create the draft release if it does not exist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # le bozze non si trovano cercando per tag: si cercano nell'elenco delle release
+          existing=$(gh api "repos/$GITHUB_REPOSITORY/releases" --jq "[.[] | select(.tag_name == \"$TAG\")] | length")
+          if [ "$existing" = "0" ]; then
+            gh release create "$TAG" --draft --verify-tag --title "$TAG"
+          else
+            echo "A release for $TAG already exists, reusing it"
+          fi
+
   build:
     name: Build (${{ matrix.target }})
+    needs: release
     strategy:
       fail-fast: false
       matrix:
@@ -28,6 +60,8 @@ jobs:
     defaults:
       run:
         working-directory: deadlock-manager
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - uses: actions/checkout@v4
@@ -37,15 +71,6 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: deadlock-manager/package-lock.json
-
-      - name: Check that the tag matches package.json
-        shell: bash
-        run: |
-          version="v$(node -p "require('./package.json').version")"
-          if [ "$version" != "$GITHUB_REF_NAME" ]; then
-            echo "::error::Tag $GITHUB_REF_NAME does not match package.json version ($version)"
-            exit 1
-          fi
 
       # Strumenti per i pacchetti Linux: rpm (rpmbuild), pacman (bsdtar), flatpak (flatpak-builder
       # e il repository Flathub da cui electron-builder scarica runtime ed Electron BaseApp).
@@ -63,6 +88,15 @@ jobs:
         run: npm run build
 
       - name: Package and upload to the draft release
+        if: matrix.target != 'linux'
         run: npx electron-builder --${{ matrix.target }} --publish always
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Su Linux lo snap si crea a parte: electron-builder pubblica sempre gli snap sullo Snap Store
+      # (che richiede snapcraft e un account), mai su GitHub. Lo si crea senza pubblicarlo e lo si
+      # carica nella bozza con gh.
+      - name: Package and upload to the draft release (Linux)
+        if: matrix.target == 'linux'
+        run: |
+          npx electron-builder --linux AppImage deb rpm pacman flatpak --publish always
+          npx electron-builder --linux snap --publish never
+          gh release upload "$TAG" dist/*.snap --clobber
