@@ -149,6 +149,10 @@ function registerIpc(): void {
   )
   ipcMain.handle('mods:installed', () => getInstalledModIds())
   ipcMain.handle('mods:installedInfo', () => installedWithInfo())
+  ipcMain.handle('mods:loadOrder', () => ManageMods.getLoadOrder())
+  ipcMain.handle('mods:setLoadOrder', (_, modIds: string[]) =>
+    toResult(async () => ManageMods.setLoadOrder(modIds, await requireGamePath()))
+  )
 
   ipcMain.handle('settings:get', () => readSettings())
   ipcMain.handle('settings:set', (_, patch: Partial<Settings>) =>

@@ -92,6 +92,21 @@ export const it = {
   'installed.unavailable': 'Non più disponibile',
   'installed.enabled': 'Attiva',
   'installed.update': 'Aggiorna',
+  'installed.loadOrder': 'Ordine di caricamento',
+  'loadOrder.tooltip': 'Scegli quale mod ha la priorità quando più mod modificano gli stessi file',
+  'loadOrder.title': 'Ordine di caricamento',
+  'loadOrder.description':
+    "Se due mod contengono gli stessi file, il gioco usa quelli della mod più in alto. Trascina le mod o usa le frecce per cambiare l'ordine.",
+  'loadOrder.highest': '↑ Priorità più alta',
+  'loadOrder.lowest': '↓ Priorità più bassa',
+  'loadOrder.empty': 'Nessuna mod attiva da ordinare.',
+  'loadOrder.disabledNote':
+    'Le mod disattivate non compaiono: quando le riattivi finiscono in fondo.',
+  'loadOrder.moveUp': 'Sposta su',
+  'loadOrder.moveDown': 'Sposta giù',
+  'loadOrder.cancel': 'Annulla',
+  'loadOrder.save': 'Salva ordine',
+  'loadOrder.saved': 'Ordine di caricamento salvato',
 
   'notFound.title': 'Pagina non trovata',
   'notFound.text': 'La pagina che cerchi non esiste.',
@@ -115,10 +130,12 @@ export const it = {
   'error.noDownloads': 'Nessun file scaricabile per questa mod',
   'error.checksum': 'Checksum MD5 non valido: file corrotto',
   'error.unsupportedFormat': 'Formato non supportato: {ext}',
-  'error.noVpk': 'Nessun file _dir.vpk trovato nella mod',
+  'error.noVpk': 'Questa mod non contiene file .vpk da installare in addons',
   'error.noFreeIndex': 'Nessun indice pakNN libero in addons',
   'error.searchPaths': 'SearchPaths non trovato in gameinfo.gi',
   'error.api': "Errore dell'API ({status})",
+  'error.loadOrderChanged':
+    "Le mod attive sono cambiate nel frattempo: riapri l'ordine di caricamento",
   'error.syncIncomplete':
     'Sincronizzazione incompleta: lette {got} mod su {expected}, riprovo più tardi',
   'error.downloadFailed': 'Download fallito ({status})',

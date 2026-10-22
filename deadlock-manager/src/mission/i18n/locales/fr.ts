@@ -94,6 +94,22 @@ export const fr: Messages = {
   'installed.unavailable': 'Plus disponible',
   'installed.enabled': 'Actif',
   'installed.update': 'Mettre à jour',
+  'installed.loadOrder': 'Ordre de chargement',
+  'loadOrder.tooltip':
+    "Choisissez quel mod l'emporte quand plusieurs mods modifient les mêmes fichiers",
+  'loadOrder.title': 'Ordre de chargement',
+  'loadOrder.description':
+    "Si deux mods contiennent les mêmes fichiers, le jeu utilise ceux du mod le plus haut dans la liste. Faites glisser les mods ou utilisez les flèches pour changer l'ordre.",
+  'loadOrder.highest': '↑ Priorité la plus haute',
+  'loadOrder.lowest': '↓ Priorité la plus basse',
+  'loadOrder.empty': 'Aucun mod actif à ordonner.',
+  'loadOrder.disabledNote':
+    'Les mods désactivés ne sont pas listés : une fois réactivés, ils passent en dernier.',
+  'loadOrder.moveUp': 'Monter',
+  'loadOrder.moveDown': 'Descendre',
+  'loadOrder.cancel': 'Annuler',
+  'loadOrder.save': "Enregistrer l'ordre",
+  'loadOrder.saved': 'Ordre de chargement enregistré',
 
   'notFound.title': 'Page introuvable',
   'notFound.text': "La page que vous cherchez n'existe pas.",
@@ -117,10 +133,12 @@ export const fr: Messages = {
   'error.noDownloads': "Ce mod n'a aucun fichier téléchargeable",
   'error.checksum': 'Somme de contrôle MD5 invalide : fichier corrompu',
   'error.unsupportedFormat': 'Format non pris en charge : {ext}',
-  'error.noVpk': 'Aucun fichier _dir.vpk trouvé dans le mod',
+  'error.noVpk': 'Ce mod ne contient aucun fichier .vpk à installer dans addons',
   'error.noFreeIndex': 'Plus aucun index pakNN libre dans addons',
   'error.searchPaths': 'SearchPaths introuvable dans gameinfo.gi',
   'error.api': "Erreur de l'API ({status})",
+  'error.loadOrderChanged':
+    "Les mods actifs ont changé entre-temps : rouvrez l'ordre de chargement",
   'error.syncIncomplete':
     'Synchronisation incomplète : {got} mods lus sur {expected}, nouvel essai plus tard',
   'error.downloadFailed': 'Échec du téléchargement ({status})',

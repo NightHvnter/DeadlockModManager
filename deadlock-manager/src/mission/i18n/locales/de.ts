@@ -93,6 +93,21 @@ export const de: Messages = {
   'installed.unavailable': 'Nicht mehr verfügbar',
   'installed.enabled': 'Aktiv',
   'installed.update': 'Aktualisieren',
+  'installed.loadOrder': 'Ladereihenfolge',
+  'loadOrder.tooltip': 'Wähle, welche Mod Vorrang hat, wenn mehrere Mods dieselben Dateien ändern',
+  'loadOrder.title': 'Ladereihenfolge',
+  'loadOrder.description':
+    'Enthalten zwei Mods dieselben Dateien, verwendet das Spiel die der weiter oben stehenden Mod. Ziehe die Mods oder nutze die Pfeile, um die Reihenfolge zu ändern.',
+  'loadOrder.highest': '↑ Höchste Priorität',
+  'loadOrder.lowest': '↓ Niedrigste Priorität',
+  'loadOrder.empty': 'Keine aktiven Mods zum Sortieren.',
+  'loadOrder.disabledNote':
+    'Deaktivierte Mods werden nicht angezeigt: Nach dem erneuten Aktivieren landen sie ganz unten.',
+  'loadOrder.moveUp': 'Nach oben',
+  'loadOrder.moveDown': 'Nach unten',
+  'loadOrder.cancel': 'Abbrechen',
+  'loadOrder.save': 'Reihenfolge speichern',
+  'loadOrder.saved': 'Ladereihenfolge gespeichert',
 
   'notFound.title': 'Seite nicht gefunden',
   'notFound.text': 'Die gesuchte Seite existiert nicht.',
@@ -116,10 +131,12 @@ export const de: Messages = {
   'error.noDownloads': 'Diese Mod hat keine herunterladbaren Dateien',
   'error.checksum': 'Ungültige MD5-Prüfsumme: Datei beschädigt',
   'error.unsupportedFormat': 'Nicht unterstütztes Format: {ext}',
-  'error.noVpk': 'Keine _dir.vpk-Datei in der Mod gefunden',
+  'error.noVpk': 'Diese Mod enthält keine .vpk-Dateien zum Installieren in addons',
   'error.noFreeIndex': 'Kein freier pakNN-Index in addons',
   'error.searchPaths': 'SearchPaths in gameinfo.gi nicht gefunden',
   'error.api': 'API-Fehler ({status})',
+  'error.loadOrderChanged':
+    'Die aktiven Mods haben sich inzwischen geändert: Öffne die Ladereihenfolge erneut',
   'error.syncIncomplete':
     'Unvollständige Synchronisierung: {got} von {expected} Mods gelesen, später erneut versuchen',
   'error.downloadFailed': 'Download fehlgeschlagen ({status})',

@@ -39,6 +39,10 @@ const api = {
     ipcRenderer.invoke('mods:setEnabled', modId, enabled),
   getInstalledMods: (): Promise<string[]> => ipcRenderer.invoke('mods:installed'),
   getInstalledModsInfo: (): Promise<InstalledModInfo[]> => ipcRenderer.invoke('mods:installedInfo'),
+  /** Mod attive dalla priorità più alta (`pak01`) alla più bassa. */
+  getLoadOrder: (): Promise<InstalledMod[]> => ipcRenderer.invoke('mods:loadOrder'),
+  setLoadOrder: (modIds: string[]): Promise<IpcResult<InstalledMod[]>> =>
+    ipcRenderer.invoke('mods:setLoadOrder', modIds),
   getCategories: (): Promise<string[]> => ipcRenderer.invoke('mods:categories'),
   /** Registra `listener` per l'avanzamento dei download; restituisce la funzione per rimuoverlo. */
   onInstallProgress: (listener: (progress: InstallProgress) => void): (() => void) => {
