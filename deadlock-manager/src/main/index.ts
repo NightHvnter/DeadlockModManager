@@ -51,7 +51,8 @@ function createWindow(): void {
     show: false,
     autoHideMenuBar: true,
     title: 'Deadlock Mod Manager',
-    ...(process.platform === 'linux' ? { icon } : {}),
+    // icona della finestra e della barra delle applicazioni (su macOS vale quella del pacchetto)
+    icon,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false

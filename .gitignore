@@ -135,4 +135,3 @@ dist
 .yarn/install-state.gz
 .pnp.*
 /deadlock-manager/.vscode
-/deadlock-manager/build
