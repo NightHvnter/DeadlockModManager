@@ -1,89 +1,90 @@
 # Deadlock Mod Manager
 
-App desktop (Electron + React + TypeScript) per cercare, installare e gestire le mod di
-[Deadlock](https://store.steampowered.com/app/1422450/Deadlock/) usando direttamente l'API di
-[GameBanana](https://gamebanana.com/games/20948).
+Desktop app (Electron + React + TypeScript) to browse, install and manage mods for
+[Deadlock](https://store.steampowered.com/app/1422450/Deadlock/), using the
+[GameBanana](https://gamebanana.com/games/20948) API directly.
 
-## Funzionalità
+## Features
 
-- Elenco delle mod con ricerca, filtri per categoria, eroe e tipo (grafiche, audio, mappe) e ordinamento
-- Dettaglio della mod: galleria di immagini, descrizione, anteprima audio, dipendenze e scelta del file da scaricare
-- Installazione da archivi `.zip`, `.rar` o da `.vpk`, con verifica MD5 e avanzamento del download
-- Pagina **Installate**: attiva/disattiva, aggiorna e disinstalla le mod
-- Rilevamento automatico della cartella di Deadlock nelle librerie di Steam (Windows, Linux, macOS)
-- Temi chiaro, scuro, sistema, oceano e foresta
-- Interfaccia in italiano, inglese, spagnolo, francese e tedesco (di default la lingua del sistema)
+- Mod list with search, filters by category, hero and type (visual, audio, maps) and sorting
+- Mod details: image gallery, description, audio preview, update history and choice of the file to download
+- Installation from `.zip`, `.rar` or `.vpk` files, with MD5 verification and download progress
+- **Installed** page: enable/disable, update and uninstall mods, and change their load order
+- **Play** button that makes sure mods are still active after a game update and launches Deadlock through Steam
+- Automatic detection of the Deadlock folder in the Steam libraries (Windows, Linux, macOS)
+- Light, dark, system, ocean and forest themes
+- Interface in Italian, English, Spanish, French and German (the system language by default)
 
-## Traduzioni
+## Translations
 
-I testi sono in `src/mission/i18n/locales`, condivisi tra interfaccia e processo main.
-`it.ts` è il dizionario di riferimento: le altre lingue sono tipizzate sulle sue chiavi, quindi
-`npm run typecheck` segnala qualsiasi traduzione mancante. Per aggiungere una lingua basta creare
-il suo file e registrarla in `LANGUAGES` e `MESSAGES` in `src/mission/i18n/index.ts`.
+The texts live in `src/mission/i18n/locales` and are shared by the interface and the main
+process. `it.ts` is the reference dictionary: the other languages are typed on its keys, so
+`npm run typecheck` reports any missing translation. To add a language, create its file and
+register it in `LANGUAGES` and `MESSAGES` in `src/mission/i18n/index.ts`.
 
-## Come funziona l'installazione
+## How installation works
 
-1. I file della mod vengono letti dalla sua pagina su GameBanana (`apiv11/{Mod|Sound}/<id>/ProfilePage`);
-   il file scelto viene scaricato e verificato con l'MD5.
-2. I VPK vengono copiati in `game/citadel/addons` rinominati `pakNN_dir.vpk`, con l'indice
-   successivo al più alto già usato (la mod nuova finisce in fondo all'ordine di caricamento).
-   Sono supportati sia i VPK divisi (`*_dir.vpk` più le parti `*_000.vpk`, ...) sia quelli a
-   file unico (`*.vpk`).
-3. Se manca, viene aggiunta la riga `Game citadel/addons` a `game/citadel/gameinfo.gi`
-   (l'originale viene salvato in `gameinfo.gi.bak`).
-4. I file installati sono registrati in `installed.json` nella cartella dati dell'app.
-   Le mod disattivate vengono spostate in `disabled/<id>` nella stessa cartella.
+1. The mod's files are read from its GameBanana download page
+   (`apiv11/{Mod|Sound}/<id>/DownloadPage`); the chosen file is downloaded and verified with MD5.
+2. The VPKs are copied to `game/citadel/addons` and renamed `pakNN_dir.vpk`, using the index after
+   the highest one already in use (so a new mod goes to the bottom of the load order). Both split
+   VPKs (`*_dir.vpk` plus the `*_000.vpk`, ... parts) and single-file VPKs (`*.vpk`) are supported.
+3. If it is missing, the line `Game citadel/addons` is added to `game/citadel/gameinfo.gi`
+   (the original file is saved as `gameinfo.gi.bak`).
+4. The installed files are recorded in `installed.json` in the app's data folder.
+   Disabled mods are moved to `disabled/<id>` in the same folder.
 
-## Aggiornamenti del gioco e `gameinfo.gi`
+## Game updates and `gameinfo.gi`
 
-Gli aggiornamenti di Deadlock (e la verifica dei file di Steam) riportano `gameinfo.gi`
-all'originale, togliendo la riga `Game citadel/addons`: le mod restano installate ma il gioco
-non le carica più. L'app controlla il file **solo all'apertura e quando si preme "Gioca"**
-(mai in background) e, se ci sono mod attive e la riga manca, la rimette aggiornando prima il
-backup `gameinfo.gi.bak`. La riparazione automatica si può disattivare nelle impostazioni: in
-quel caso compare un avviso con il pulsante "Ripara". "Gioca" avvia poi Deadlock tramite Steam
+Deadlock updates (and Steam's file verification) restore `gameinfo.gi` to the original, removing
+the `Game citadel/addons` line: the mods stay installed but the game no longer loads them. The app
+checks the file **only when it opens and when you press "Play"** (never in the background) and, if
+there are enabled mods and the line is missing, puts it back after refreshing the
+`gameinfo.gi.bak` backup. Automatic repair can be turned off in the settings: in that case a
+warning with a "Repair" button appears instead. "Play" then launches Deadlock through Steam
 (`steam://rungameid/1422450`).
 
-## Ordine di caricamento
+## Load order
 
-Se due mod contengono gli stessi file, il gioco usa quelli della mod con l'indice `pakNN` più
-basso. Dalla pagina **Installate** → **Ordine di caricamento** si riordinano le mod attive
-(trascinandole o con le frecce): al salvataggio gli indici vengono riassegnati nell'ordine
-scelto, `pak01` alla mod in cima. I file in `addons` non installati dall'app non vengono
-toccati. Le mod disattivate non compaiono e, quando vengono riattivate, finiscono in fondo.
+If two mods contain the same files, the game uses the ones from the mod with the lowest `pakNN`
+index. From the **Installed** page → **Load order** you can reorder the enabled mods (by dragging
+them or with the arrows): when you save, the indices are reassigned in the chosen order, `pak01`
+to the mod at the top. Files in `addons` that were not installed by the app are left untouched.
+Disabled mods are not listed and go to the bottom when they are enabled again.
 
-## Elenco delle mod
+## Mod catalog
 
-Il catalogo (codice in `src/mission/gamebanana`) viene sincronizzato da GameBanana con gli
-stessi endpoint, limiti e strategia dell'app ufficiale
-([deadlock-mod-manager](https://github.com/deadlock-mod-manager/deadlock-mod-manager)) e salvato
-in `gamebanana-catalog.json`.
+The catalog (code in `src/mission/gamebanana`) is synced from GameBanana using the same endpoints,
+limits and strategy as the official app
+([deadlock-mod-manager](https://github.com/deadlock-mod-manager/deadlock-mod-manager)) and saved in
+`gamebanana-catalog.json`.
 
-| Endpoint                               | A cosa serve                                                                           |
-| -------------------------------------- | -------------------------------------------------------------------------------------- |
-| `apiv11/{Mod,Sound}/Index`             | elenco delle mod di Deadlock, 50 per pagina                                            |
-| `api.gamebanana.com/Core/Item/Data`    | "idratazione" di 40 mod per richiesta: download, categorie, descrizione, data dei file |
-| `apiv11/{Mod,Sound}/{id}/DownloadPage` | file da scaricare per l'installazione                                                  |
-| `apiv11/{Mod,Sound}/{id}/Updates`      | changelog nel dettaglio della mod                                                      |
+| Endpoint                               | Used for                                                                           |
+| -------------------------------------- | ---------------------------------------------------------------------------------- |
+| `apiv11/{Mod,Sound}/Index`             | list of Deadlock mods, 50 per page                                                 |
+| `api.gamebanana.com/Core/Item/Data`    | "hydration" of 40 mods per request: downloads, categories, description, file dates |
+| `apiv11/{Mod,Sound}/{id}/DownloadPage` | files to download for installation                                                 |
+| `apiv11/{Mod,Sound}/{id}/Updates`      | update history in the mod details                                                  |
 
-- **primo avvio**: la prima pagina di mod e di audio è mostrata subito; poi parte la
-  sincronizzazione completa, che legge l'indice dalla mod più vecchia (`Generic_Oldest`, così le
-  pagine non scorrono durante la lettura) e idrata ogni pagina;
-- **ogni 20 minuti**: sincronizzazione incrementale dalla mod modificata più di recente
-  (`Generic_LatestModified`) fino a quelle già viste; si idratano solo le mod nuove o cambiate;
-- **ogni 7 giorni**: di nuovo la sincronizzazione completa; le mod non più viste vengono tolte
-  solo se `Core/Item/Data` conferma che non esistono più;
-- l'interfaccia viene aggiornata solo quando una sincronizzazione è finita;
-- limiti: al massimo 4 richieste contemporanee e 10 al secondo, timeout di 30 s, 3 nuovi
-  tentativi su errori di rete, 429 e 5xx rispettando `Retry-After`.
+- **first launch**: the first page of mods and sounds is shown right away; then the full sync
+  starts, reading the index from the oldest mod (`Generic_Oldest`, so pages don't shift while they
+  are being read) and hydrating each page; the interface is updated every 100 new mods, so the
+  list fills up while the sync runs;
+- **every 20 minutes**: incremental sync from the most recently modified mod (`Generic_LatestModified`)
+  down to the ones already seen; only new or changed mods are hydrated;
+- **every 7 days**: a full sync again; mods that are no longer seen are removed only if
+  `Core/Item/Data` confirms they no longer exist;
+- after the first launch, the interface is updated only when a sync has finished;
+- limits: at most 4 concurrent requests and 10 per second, 30 s timeout, 3 retries on network
+  errors, 429 and 5xx, honoring `Retry-After`.
 
-Durante lo sviluppo i log `[gamebanana]` nel terminale di `npm run dev` mostrano tempi e
-richieste di ogni sincronizzazione; l'avanzamento è visibile anche nelle impostazioni.
+During development, the `[gamebanana]` logs in the `npm run dev` terminal show the time and the
+number of requests of each sync; the progress is also visible in the settings.
 
-Le impostazioni sono in `settings.json` nella cartella dati dell'app
-(`%APPDATA%/deadlock-manager` su Windows).
+The settings are stored in `settings.json` in the app's data folder
+(`%APPDATA%/deadlock-manager` on Windows).
 
-## Sviluppo
+## Development
 
 ```bash
 npm install
@@ -95,6 +96,13 @@ npm run dev
 
 ```bash
 npm run typecheck
+```
+
+The app icon is drawn in `resources/icon.svg`; after changing it, regenerate `build/icon.png`,
+`build/icon.ico`, `build/icon.icns` and `resources/icon.png` with:
+
+```bash
+npm run icons
 ```
 
 ## Build
