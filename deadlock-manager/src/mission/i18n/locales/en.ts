@@ -22,7 +22,6 @@ export const en: Messages = {
   'settings.lastUpdated': ', updated at {time}',
   'settings.refreshNow': 'Refresh now',
   'settings.syncIndex': 'Syncing with GameBanana: page {done} of {total}',
-  'settings.syncCounts': 'Reading downloads and likes for {total} mods...',
   'settings.listUpdated': 'Mod list updated',
   'settings.listAlreadyUpdated': 'The list was already up to date',
   'settings.gameFound': 'Deadlock found',
@@ -78,6 +77,8 @@ export const en: Messages = {
   'details.loadingFiles': 'Loading files...',
   'details.previousImage': 'Previous image',
   'details.nextImage': 'Next image',
+  'details.changelog': 'Update history',
+  'details.version': 'version {version}',
 
   'installed.search': 'Search installed mods...',
   'installed.count': '{count} installed',
@@ -118,6 +119,7 @@ export const en: Messages = {
   'error.noFreeIndex': 'No free pakNN index left in addons',
   'error.searchPaths': 'SearchPaths not found in gameinfo.gi',
   'error.api': 'API error ({status})',
+  'error.syncIncomplete': 'Incomplete sync: read {got} of {expected} mods, retrying later',
   'error.downloadFailed': 'Download failed ({status})',
   'error.invalidPath': 'Invalid path in the archive: {path}'
 }

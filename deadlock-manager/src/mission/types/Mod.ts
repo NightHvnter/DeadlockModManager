@@ -44,4 +44,18 @@ export interface ModDownload {
   size: number
   name: string
   md5Checksum: string | null
+  /** Descrizione del file scritta dall'autore (es. "versione senza effetti"), se c'è. */
+  description?: string | null
+}
+
+/** Voce del changelog di una mod. */
+export interface ModChangelogEntry {
+  title: string
+  version: string | null
+  /** Data in formato ISO. */
+  date: string
+  /** Testo libero in HTML, spesso vuoto quando c'è l'elenco delle modifiche. */
+  text: string | null
+  /** Modifiche con la loro categoria (es. "Improvement", "Bugfix"). */
+  changes: { text: string; category: string }[]
 }

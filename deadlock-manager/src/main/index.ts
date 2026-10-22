@@ -2,7 +2,7 @@ import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
-import { GameBananaCatalog } from '../mission/gamebanana'
+import { GameBananaCatalog, INCREMENTAL_INTERVAL_MS } from '../mission/gamebanana'
 import { ManageMods, getInstalledModIds, getInstalledMods } from '../mission/deadlock'
 import {
   detectGamePath,
@@ -108,6 +108,9 @@ function registerIpc(): void {
       return ManageMods.getDownloads(mod.id)
     })
   )
+  ipcMain.handle('mods:changelog', (_, modId: string) =>
+    toResult(() => ManageMods.getChangelog(modId))
+  )
   ipcMain.handle('mods:install', (event, modId: string, fileName?: string) =>
     toResult(async () => {
       const mod = (await catalogReady).getById(modId)
@@ -212,7 +215,7 @@ app.whenReady().then(async () => {
   // terminale di `npm run dev` mostrano tempi e numero di richieste.
   // Se fallisce senza catalogo salvato l'app non può funzionare.
   catalogReady = GameBananaCatalog.create(
-    60 * 60_000,
+    INCREMENTAL_INTERVAL_MS,
     join(app.getPath('userData'), 'gamebanana-catalog.json'),
     () => BrowserWindow.getAllWindows().forEach((w) => w.webContents.send('mods:updated')),
     (message) => console.log(`[gamebanana] ${message}`)

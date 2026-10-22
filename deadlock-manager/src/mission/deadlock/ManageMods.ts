@@ -1,4 +1,4 @@
-import { InstalledMod, Mod, ModDownload } from "../types"
+import { InstalledMod, Mod, ModChangelogEntry, ModDownload } from "../types"
 import { AppError } from "../i18n"
 
 import { createHash } from 'node:crypto'
@@ -133,22 +133,37 @@ export class ManageMods {
   }
 
   /**
-   * File scaricabili di una mod, letti dalla sua pagina su GameBanana (dal più recente),
-   * esclusi quelli archiviati dall'autore.
+   * File scaricabili di una mod, letti dalla sua `DownloadPage` su GameBanana (dal più
+   * recente), esclusi quelli archiviati dall'autore.
    */
   public static async getDownloads(modId: string): Promise<ModDownload[]> {
     const ref = parseModId(modId)
     if (!ref) throw new AppError('error.modNotFound')
-    const profile = await gameBanana.profile(ref.type, ref.id)
-    return (profile._aFiles ?? [])
+    const page = await gameBanana.downloadPage(ref.type, ref.id)
+    return (page._aFiles ?? [])
       .filter((f) => !f._bIsArchived)
       .sort((a, b) => b._tsDateAdded - a._tsDateAdded)
       .map((f) => ({
         url: f._sDownloadUrl,
         size: f._nFilesize,
         name: f._sFile,
-        md5Checksum: f._sMd5Checksum ?? null
+        md5Checksum: f._sMd5Checksum || null,
+        description: f._sDescription || null
       }))
+  }
+
+  /** Prima pagina del changelog di una mod, dalla voce più recente. */
+  public static async getChangelog(modId: string): Promise<ModChangelogEntry[]> {
+    const ref = parseModId(modId)
+    if (!ref) throw new AppError('error.modNotFound')
+    const page = await gameBanana.updates(ref.type, ref.id, 1)
+    return (page._aRecords ?? []).map((u) => ({
+      title: u._sName,
+      version: u._sVersion || null,
+      date: new Date(u._tsDateAdded * 1000).toISOString(),
+      text: u._sText || null,
+      changes: (u._aChangeLog ?? []).map((c) => ({ text: c.text, category: c.cat }))
+    }))
   }
 
   private static async downloadFile(

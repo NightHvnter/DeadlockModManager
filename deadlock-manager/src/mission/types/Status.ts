@@ -1,7 +1,5 @@
-/** Avanzamento di una sincronizzazione del catalogo in corso. */
+/** Avanzamento di una sincronizzazione completa del catalogo: pagine dell'indice lette e idratate. */
 export interface SyncProgress {
-  /** `index`: pagine dell'elenco delle mod; `counts`: download e "mi piace". */
-  phase: 'index' | 'counts'
   done: number
   total: number
 }

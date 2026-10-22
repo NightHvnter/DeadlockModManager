@@ -22,7 +22,6 @@ export const es: Messages = {
   'settings.lastUpdated': ', actualizada a las {time}',
   'settings.refreshNow': 'Actualizar ahora',
   'settings.syncIndex': 'Sincronizando con GameBanana: página {done} de {total}',
-  'settings.syncCounts': 'Leyendo descargas y me gusta de {total} mods...',
   'settings.listUpdated': 'Lista de mods actualizada',
   'settings.listAlreadyUpdated': 'La lista ya estaba actualizada',
   'settings.gameFound': 'Deadlock encontrado',
@@ -79,6 +78,8 @@ export const es: Messages = {
   'details.loadingFiles': 'Cargando archivos...',
   'details.previousImage': 'Imagen anterior',
   'details.nextImage': 'Imagen siguiente',
+  'details.changelog': 'Historial de actualizaciones',
+  'details.version': 'versión {version}',
 
   'installed.search': 'Buscar entre los instalados...',
   'installed.count': '{count} instalados',
@@ -119,6 +120,7 @@ export const es: Messages = {
   'error.noFreeIndex': 'No queda ningún índice pakNN libre en addons',
   'error.searchPaths': 'No se encontró SearchPaths en gameinfo.gi',
   'error.api': 'Error de la API ({status})',
+  'error.syncIncomplete': 'Sincronización incompleta: leídos {got} de {expected} mods, se reintentará más tarde',
   'error.downloadFailed': 'Error en la descarga ({status})',
   'error.invalidPath': 'Ruta no válida en el archivo: {path}'
 }

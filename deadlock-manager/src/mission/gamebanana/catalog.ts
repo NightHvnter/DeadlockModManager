@@ -1,39 +1,56 @@
 import { readFile, rename, writeFile } from 'node:fs/promises'
-import { describeError, type Language } from '../i18n'
+import { AppError, describeError, type Language } from '../i18n'
 import { ModFilters, type Mod, type ModSearchResult, type Status, type SyncProgress } from '../types'
-import { gameBanana, INDEX_PAGE_SIZE } from './client'
+import { gameBanana, HYDRATION_BATCH_SIZE, INDEX_PAGE_SIZE } from './client'
 import { modId, normalize } from './normalize'
 import { SUBMISSION_TYPES, type GbIndexRecord, type SubmissionType } from './types'
 
 /** Versione del formato del file su disco: se cambia, il catalogo salvato viene ignorato. */
-const FILE_VERSION = 1
+const FILE_VERSION = 2
+/** Ogni quanto controllare le mod modificate (come l'app ufficiale). */
+export const INCREMENTAL_INTERVAL_MS = 20 * 60_000
+/** Ogni quanto rileggere tutto il catalogo, per togliere le mod rimosse da GameBanana. */
+const FULL_SYNC_INTERVAL_MS = 7 * 24 * 60 * 60_000
+/** Sotto questa quota di mod lette rispetto a quelle dichiarate, la sincronizzazione è incompleta. */
+const MIN_COVERAGE = 0.95
+/** Oltre questo numero di mod non più viste non si verifica una per una: si tengono tutte. */
+const MAX_UNSEEN_CHECKS = 400
+
+/** Mod del catalogo; `hydrated` è `false` finché mancano download, descrizione e file. */
+interface Entry {
+  mod: Mod
+  hydrated: boolean
+}
 
 /** Contenuto del file con il catalogo salvato. */
 interface SavedCatalog {
   version: number
   savedAt: string
-  /**
-   * Per ogni tipo, la data di modifica più recente già sincronizzata (secondi). `0` vuol dire
-   * che non è mai stata fatta una sincronizzazione completa.
-   */
-  cursors: Record<SubmissionType, number>
-  mods: Mod[]
+  /** Ultima sincronizzazione completa (ms), `0` se mai fatta. */
+  lastFullSyncAt: number
+  /** Per ogni tipo, la data di modifica più recente già sincronizzata (secondi). */
+  highWaterMarks: Record<SubmissionType, number>
+  entries: Entry[]
 }
 
 /** Funzione per i messaggi di diagnostica della sincronizzazione. */
 export type CatalogLogger = (message: string) => void
 
 /**
- * Catalogo delle mod di Deadlock sincronizzato direttamente da GameBanana.
+ * Catalogo delle mod di Deadlock sincronizzato da GameBanana con gli stessi endpoint e la
+ * stessa strategia dell'app ufficiale.
  *
- * - Primo avvio: scarica subito la prima pagina di mod e audio, poi il resto in background.
- * - Avvii successivi: parte dal catalogo su disco e chiede a GameBanana solo le mod modificate
- *   dopo l'ultima sincronizzazione (l'indice è ordinato per data di modifica).
- * - La lista in memoria viene sostituita solo a sincronizzazione finita, poi viene chiamato `onUpdate`.
+ * - Primo avvio: mostra subito la prima pagina di mod e audio, poi fa la sincronizzazione completa.
+ * - Sincronizzazione completa (al primo avvio e ogni 7 giorni): legge tutto l'indice dalla mod
+ *   più vecchia e "idrata" ogni pagina con `Core/Item/Data` (download, descrizione, file).
+ * - Sincronizzazione incrementale (ogni 20 minuti): legge l'indice dalla mod modificata più di
+ *   recente fino a quelle già viste, e idrata solo le mod cambiate.
+ * - L'interfaccia viene avvisata con `onUpdate` solo a sincronizzazione finita.
  */
 export class GameBananaCatalog {
-  private mods = new Map<string, Mod>()
-  private cursors: Record<SubmissionType, number> = { Mod: 0, Sound: 0 }
+  private entries = new Map<string, Entry>()
+  private highWaterMarks: Record<SubmissionType, number> = { Mod: 0, Sound: 0 }
+  private lastFullSyncAt = 0
   private timer?: NodeJS.Timeout
   private lastUpdated?: Date
   /** Errore dell'ultima sincronizzazione, tradotto solo quando viene letto con `status()`. */
@@ -54,7 +71,7 @@ export class GameBananaCatalog {
    * @throws Se non c'è un catalogo salvato e GameBanana non risponde
    */
   static async create(
-    refreshMs = 60 * 60_000,
+    refreshMs = INCREMENTAL_INTERVAL_MS,
     cachePath?: string,
     onUpdate?: () => void,
     log: CatalogLogger = () => {}
@@ -71,11 +88,12 @@ export class GameBananaCatalog {
     if (!this.cachePath) return false
     try {
       const saved: SavedCatalog = JSON.parse(await readFile(this.cachePath, 'utf8'))
-      if (saved.version !== FILE_VERSION || !saved.mods?.length) return false
-      this.mods = new Map(saved.mods.map((m) => [m.id, m]))
-      this.cursors = saved.cursors
+      if (saved.version !== FILE_VERSION || !saved.entries?.length) return false
+      this.entries = new Map(saved.entries.map((e) => [e.mod.id, e]))
+      this.highWaterMarks = saved.highWaterMarks
+      this.lastFullSyncAt = saved.lastFullSyncAt
       this.lastUpdated = new Date(saved.savedAt)
-      this.log(`catalogo caricato dal disco: ${this.mods.size} mod`)
+      this.log(`catalogo caricato dal disco: ${this.entries.size} mod`)
       return true
     } catch {
       return false
@@ -88,28 +106,30 @@ export class GameBananaCatalog {
     const saved: SavedCatalog = {
       version: FILE_VERSION,
       savedAt: (this.lastUpdated ?? new Date()).toISOString(),
-      cursors: this.cursors,
-      mods: [...this.mods.values()]
+      lastFullSyncAt: this.lastFullSyncAt,
+      highWaterMarks: this.highWaterMarks,
+      entries: [...this.entries.values()]
     }
     const tmp = `${this.cachePath}.tmp`
     await writeFile(tmp, JSON.stringify(saved))
     await rename(tmp, this.cachePath)
   }
 
-  /** Prima pagina di ogni tipo, per avere subito qualcosa da mostrare al primo avvio. */
+  /** Prima pagina di ogni tipo, senza idratazione, per avere subito qualcosa da mostrare. */
   private async loadFirstPages(): Promise<void> {
     const started = Date.now()
-    const pages = await Promise.all(SUBMISSION_TYPES.map((t) => gameBanana.indexPage(t, 1)))
+    const pages = await Promise.all(SUBMISSION_TYPES.map((t) => gameBanana.indexPage(t, 1, true)))
     for (const record of pages.flatMap((p) => p._aRecords)) {
       const mod = normalize(record)
-      this.mods.set(mod.id, mod)
+      this.entries.set(mod.id, { mod, hydrated: false })
     }
     this.lastUpdated = new Date()
-    this.log(`prime pagine pronte: ${this.mods.size} mod in ${Date.now() - started} ms`)
+    this.log(`prime pagine pronte: ${this.entries.size} mod in ${Date.now() - started} ms`)
   }
 
   /**
-   * Sincronizza con GameBanana: completa se non è mai stata fatta, altrimenti solo le modifiche.
+   * Sincronizza con GameBanana: completa se non è mai stata fatta o è passata una settimana,
+   * altrimenti solo le modifiche.
    * @returns `true` se il catalogo è cambiato
    */
   public refresh(): Promise<boolean> {
@@ -123,8 +143,8 @@ export class GameBananaCatalog {
   private async doRefresh(): Promise<boolean> {
     const started = Date.now()
     const requestsBefore = gameBanana.requests
+    const full = Date.now() - this.lastFullSyncAt > FULL_SYNC_INTERVAL_MS
     try {
-      const full = SUBMISSION_TYPES.some((t) => this.cursors[t] === 0)
       const changed = full ? await this.fullSync() : await this.incrementalSync()
       this.lastError = undefined
       this.lastUpdated = new Date()
@@ -143,70 +163,105 @@ export class GameBananaCatalog {
     }
   }
 
-  /** Scarica tutto l'indice e tutti i contatori, poi sostituisce il catalogo in un colpo solo. */
-  private async fullSync(): Promise<number> {
-    const records: GbIndexRecord[] = []
-    const firsts = await Promise.all(SUBMISSION_TYPES.map((t) => gameBanana.indexPage(t, 1)))
-    const pagesPerType = firsts.map((p) => Math.ceil(p._aMetadata._nRecordCount / INDEX_PAGE_SIZE))
-    this.progress = { phase: 'index', done: firsts.length, total: pagesPerType.reduce((a, b) => a + b, 0) }
-
-    await Promise.all(
-      SUBMISSION_TYPES.map(async (type, i) => {
-        records.push(...firsts[i]._aRecords)
-        const rest = Array.from({ length: pagesPerType[i] - 1 }, (_, p) => p + 2)
-        await Promise.all(
-          rest.map(async (page) => {
-            records.push(...(await gameBanana.indexPage(type, page))._aRecords)
-            this.progress!.done++
-          })
-        )
+  /** Idrata i record a gruppi; le mod che GameBanana non restituisce più vengono scartate. */
+  private async hydrateRecords(type: SubmissionType, records: GbIndexRecord[]): Promise<Entry[]> {
+    const batches: GbIndexRecord[][] = []
+    for (let i = 0; i < records.length; i += HYDRATION_BATCH_SIZE)
+      batches.push(records.slice(i, i + HYDRATION_BATCH_SIZE))
+    const results = await Promise.all(
+      batches.map(async (batch) => {
+        const hydrations = await gameBanana.hydrate(type, batch.map((r) => r._idRow))
+        return batch.flatMap((record, i): Entry[] => {
+          const hydration = hydrations[i]
+          return hydration ? [{ mod: normalize(record, hydration), hydrated: true }] : []
+        })
       })
     )
-
-    const next = await this.withCounts(records)
-    this.mods = new Map(next.map((m) => [m.id, m]))
-    this.cursors = this.newestModified(records, { Mod: 0, Sound: 0 })
-    return next.length
+    return results.flat()
   }
 
   /**
-   * Scarica le pagine dell'indice (dalla mod modificata più di recente) finché non arriva a mod
-   * già sincronizzate, e aggiorna solo quelle.
+   * Legge tutto l'indice dalla mod più vecchia, idratando ogni pagina, e poi sostituisce il
+   * catalogo in un colpo solo. Le mod non più viste vengono tolte solo se GameBanana conferma
+   * che non esistono più.
    */
-  private async incrementalSync(): Promise<number> {
-    const records: GbIndexRecord[] = []
-    for (const type of SUBMISSION_TYPES) {
-      for (let page = 1; ; page++) {
-        const { _aRecords, _aMetadata } = await gameBanana.indexPage(type, page)
-        const fresh = _aRecords.filter((r) => r._tsDateModified > this.cursors[type])
-        records.push(...fresh)
-        if (fresh.length < _aRecords.length || _aMetadata._bIsComplete) break
+  private async fullSync(): Promise<number> {
+    const firsts = await Promise.all(SUBMISSION_TYPES.map((t) => gameBanana.indexPage(t, 1, false)))
+    const expected = firsts.reduce((n, p) => n + p._aMetadata._nRecordCount, 0)
+    const pagesPerType = firsts.map((p) => Math.ceil(p._aMetadata._nRecordCount / INDEX_PAGE_SIZE))
+    this.progress = { done: 0, total: pagesPerType.reduce((a, b) => a + b, 0) }
+
+    const next = new Map<string, Entry>()
+    const highWaterMarks: Record<SubmissionType, number> = { Mod: 0, Sound: 0 }
+    await Promise.all(
+      SUBMISSION_TYPES.flatMap((type, i) =>
+        Array.from({ length: pagesPerType[i] }, (_, p) => p + 1).map(async (page) => {
+          const records =
+            page === 1 ? firsts[i]._aRecords : (await gameBanana.indexPage(type, page, false))._aRecords
+          for (const entry of await this.hydrateRecords(type, records)) next.set(entry.mod.id, entry)
+          for (const r of records)
+            highWaterMarks[type] = Math.max(highWaterMarks[type], r._tsDateModified)
+          this.progress!.done++
+        })
+      )
+    )
+
+    if (next.size < expected * MIN_COVERAGE)
+      throw new AppError('error.syncIncomplete', { got: next.size, expected })
+
+    // Mod del vecchio catalogo non viste in questa lettura: si tengono quelle ancora esistenti
+    const unseen = [...this.entries.values()].filter((e) => e.hydrated && !next.has(e.mod.id))
+    if (unseen.length > MAX_UNSEEN_CHECKS) {
+      for (const e of unseen) next.set(e.mod.id, e)
+    } else {
+      for (const type of SUBMISSION_TYPES) {
+        const ofType = unseen.filter((e) => e.mod.isAudio === (type === 'Sound'))
+        for (let i = 0; i < ofType.length; i += HYDRATION_BATCH_SIZE) {
+          const batch = ofType.slice(i, i + HYDRATION_BATCH_SIZE)
+          const alive = await gameBanana.hydrate(type, batch.map((e) => Number(e.mod.remoteId)))
+          batch.forEach((e, j) => alive[j] && next.set(e.mod.id, e))
+        }
       }
     }
-    if (records.length === 0) return 0
 
-    for (const mod of await this.withCounts(records)) this.mods.set(mod.id, mod)
-    this.cursors = this.newestModified(records, this.cursors)
-    return records.length
+    const removed = [...this.entries.keys()].filter((id) => !next.has(id)).length
+    this.entries = next
+    this.highWaterMarks = highWaterMarks
+    this.lastFullSyncAt = Date.now()
+    this.log(`lettura completa: ${next.size} mod su ${expected} dichiarate, ${removed} rimosse`)
+    return next.size
   }
 
-  /** Converte i record nel tipo `Mod` aggiungendo download e "mi piace". */
-  private async withCounts(records: GbIndexRecord[]): Promise<Mod[]> {
-    const unique = [...new Map(records.map((r) => [modId(r._sModelName, r._idRow), r])).values()]
-    this.progress = { phase: 'counts', done: 0, total: unique.length }
-    const counts = await gameBanana.counts(unique.map((r) => ({ type: r._sModelName, id: r._idRow })))
-    this.progress.done = unique.length
-    return unique.map((r) => normalize(r, counts.get(modId(r._sModelName, r._idRow))))
-  }
-
-  private newestModified(
-    records: GbIndexRecord[],
-    start: Record<SubmissionType, number>
-  ): Record<SubmissionType, number> {
-    const cursors = { ...start }
-    for (const r of records)
-      cursors[r._sModelName] = Math.max(cursors[r._sModelName], r._tsDateModified)
-    return cursors
+  /**
+   * Legge l'indice dalla mod modificata più di recente finché non trova mod più vecchie
+   * dell'ultima sincronizzazione, e idrata solo quelle nuove o cambiate.
+   */
+  private async incrementalSync(): Promise<number> {
+    let changed = 0
+    for (const type of SUBMISSION_TYPES) {
+      const mark = this.highWaterMarks[type]
+      let newest = mark
+      const toHydrate: GbIndexRecord[] = []
+      for (let page = 1; ; page++) {
+        const { _aRecords, _aMetadata } = await gameBanana.indexPage(type, page, true)
+        for (const record of _aRecords) {
+          newest = Math.max(newest, record._tsDateModified)
+          const current = this.entries.get(modId(type, record._idRow))
+          const modified = new Date(record._tsDateModified * 1000).toISOString()
+          if (!current?.hydrated || current.mod.updatedAt !== modified) toHydrate.push(record)
+          else if (current.mod.likes !== (record._nLikeCount ?? 0)) {
+            // i "mi piace" cambiano senza modificare la mod: si aggiornano dall'indice
+            current.mod = { ...current.mod, likes: record._nLikeCount ?? 0 }
+            changed++
+          }
+        }
+        if (_aMetadata._bIsComplete || _aRecords.some((r) => r._tsDateModified < mark)) break
+      }
+      for (const entry of await this.hydrateRecords(type, toHydrate)) this.entries.set(entry.mod.id, entry)
+      this.highWaterMarks[type] = newest
+      changed += toHydrate.length
+    }
+    return changed
   }
 
   /**
@@ -220,26 +275,28 @@ export class GameBananaCatalog {
     const hero = f.hero?.toLowerCase()
     const tags = f.tags?.map((t) => t.toLowerCase())
 
-    const filtered = [...this.mods.values()].filter((m) => {
-      if (!f.includeNSFW && m.isNSFW) return false
-      if (f.onlyDownloadable && m.downloadable === false) return false
-      if (f.category && m.category !== f.category) return false
-      if (hero && m.hero?.toLowerCase() !== hero) return false
-      if (f.isAudio !== undefined && m.isAudio !== f.isAudio) return false
-      if (f.isMap !== undefined && Boolean(m.isMap) !== f.isMap) return false
-      if (tags?.length) {
-        const modTags = m.tags.map((t) => t.toLowerCase())
-        if (!tags.every((t) => modTags.includes(t))) return false
-      }
-      if (
-        q &&
-        !m.name.toLowerCase().includes(q) &&
-        !m.description?.toLowerCase().includes(q) &&
-        !m.author.toLowerCase().includes(q)
-      )
-        return false
-      return true
-    })
+    const filtered = [...this.entries.values()]
+      .map((e) => e.mod)
+      .filter((m) => {
+        if (!f.includeNSFW && m.isNSFW) return false
+        if (f.onlyDownloadable && m.downloadable === false) return false
+        if (f.category && m.category !== f.category) return false
+        if (hero && m.hero?.toLowerCase() !== hero) return false
+        if (f.isAudio !== undefined && m.isAudio !== f.isAudio) return false
+        if (f.isMap !== undefined && Boolean(m.isMap) !== f.isMap) return false
+        if (tags?.length) {
+          const modTags = m.tags.map((t) => t.toLowerCase())
+          if (!tags.every((t) => modTags.includes(t))) return false
+        }
+        if (
+          q &&
+          !m.name.toLowerCase().includes(q) &&
+          !m.description?.toLowerCase().includes(q) &&
+          !m.author.toLowerCase().includes(q)
+        )
+          return false
+        return true
+      })
 
     const dir = f.sortOrder === 'asc' ? 1 : -1
     const key = f.sortBy ?? 'likes'
@@ -257,7 +314,7 @@ export class GameBananaCatalog {
 
   /** Categorie distinte presenti nel catalogo, in ordine alfabetico. */
   public categories(): string[] {
-    return [...new Set([...this.mods.values()].map((m) => m.category))].sort()
+    return [...new Set([...this.entries.values()].map((e) => e.mod.category))].sort()
   }
 
   /**
@@ -268,7 +325,7 @@ export class GameBananaCatalog {
     return {
       lastError: this.lastError === undefined ? undefined : describeError(this.lastError, language),
       lastUpdated: this.lastUpdated,
-      total: this.mods.size,
+      total: this.entries.size,
       sync: this.progress && { ...this.progress }
     }
   }
@@ -279,6 +336,6 @@ export class GameBananaCatalog {
   }
 
   public getById(id: string): Mod | undefined {
-    return this.mods.get(id)
+    return this.entries.get(id)?.mod
   }
 }

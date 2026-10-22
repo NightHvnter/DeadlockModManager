@@ -173,9 +173,7 @@ export default function SettingsSheet(): React.JSX.Element {
               </p>
               {status?.sync && (
                 <p className="text-sm text-muted-foreground">
-                  {status.sync.phase === 'index'
-                    ? t('settings.syncIndex', { done: status.sync.done, total: status.sync.total })
-                    : t('settings.syncCounts', { total: formatNumber(status.sync.total) })}
+                  {t('settings.syncIndex', { done: status.sync.done, total: status.sync.total })}
                 </p>
               )}
               {status?.lastError && (

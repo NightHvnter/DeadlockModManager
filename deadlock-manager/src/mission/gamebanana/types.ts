@@ -24,7 +24,7 @@ export interface GbPreviewMedia {
   _aMetadata?: { _sAudioUrl?: string }
 }
 
-/** Elemento di `apiv11/{Mod|Sound}/Index`: veloce ma senza contatori, descrizione e file. */
+/** Elemento di `apiv11/{Mod|Sound}/Index`: veloce ma senza download, descrizione e file. */
 export interface GbIndexRecord {
   _idRow: number
   _sModelName: SubmissionType
@@ -40,13 +40,19 @@ export interface GbIndexRecord {
   _aRootCategory?: GbCategory
   _aSubCategory?: GbCategory
   _bIsObsolete?: boolean
+  _nLikeCount?: number
   /** `show`, `warn` o `hide`: le ultime due sono le mod con contenuti da nascondere di default. */
   _sInitialVisibility?: 'show' | 'warn' | 'hide'
-  _bHasContentRatings?: boolean
+}
+
+export interface GbPageMetadata {
+  _nRecordCount: number
+  _nPerpage: number
+  _bIsComplete: boolean
 }
 
 export interface GbIndexPage {
-  _aMetadata: { _nRecordCount: number; _nPerpage: number; _bIsComplete: boolean }
+  _aMetadata: GbPageMetadata
   _aRecords: GbIndexRecord[]
 }
 
@@ -57,23 +63,45 @@ export interface GbFile {
   _tsDateAdded: number
   _sDownloadUrl: string
   _sMd5Checksum?: string
+  _sDescription?: string
   _bIsArchived?: boolean
 }
 
-/** `apiv11/{Mod|Sound}/{id}/ProfilePage`: tutti i dettagli di una mod. */
-export interface GbProfile {
-  _idRow: number
-  _sName: string
-  _sText?: string
-  _nDownloadCount?: number
-  _nLikeCount?: number
+/** `apiv11/{Mod|Sound}/{id}/DownloadPage`: i file scaricabili, più leggero della pagina completa. */
+export interface GbDownloadPage {
   _aFiles?: GbFile[]
-  _aPreviewMedia?: GbPreviewMedia
-  _aContentRatings?: Record<string, string>
+  _bIsTrashed?: boolean
+  _bIsWithheld?: boolean
 }
 
-/** Contatori letti con la chiamata multipla `Core/Item/Data`. */
-export interface GbCounts {
+/**
+ * Dati di una mod letti con `Core/Item/Data` (la "idratazione" dell'app ufficiale):
+ * quello che l'indice non contiene.
+ */
+export interface GbHydration {
+  name: string
   downloads: number
-  likes: number
+  /** Categoria diretta: per le skin è il nome dell'eroe. */
+  category: string
+  rootCategory: string
+  description: string
+  /** Testo completo in HTML. */
+  text: string
+  /** Data del file più recente, in secondi; `null` se non ci sono file. */
+  filesUpdatedAt: number | null
+}
+
+/** Voce del changelog di `apiv11/{Mod|Sound}/{id}/Updates`. */
+export interface GbUpdate {
+  _idRow: number
+  _sName: string
+  _sVersion?: string
+  _tsDateAdded: number
+  _sText?: string
+  _aChangeLog?: { text: string; cat: string }[]
+}
+
+export interface GbUpdatesPage {
+  _aMetadata: GbPageMetadata
+  _aRecords: GbUpdate[]
 }

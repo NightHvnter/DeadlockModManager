@@ -5,6 +5,7 @@ import type {
   InstalledModInfo,
   InstallProgress,
   IpcResult,
+  ModChangelogEntry,
   ModDownload,
   ModFilters,
   ModSearchResult,
@@ -26,6 +27,8 @@ const api = {
   },
   getDownloads: (modId: string): Promise<IpcResult<ModDownload[]>> =>
     ipcRenderer.invoke('mods:downloads', modId),
+  getChangelog: (modId: string): Promise<IpcResult<ModChangelogEntry[]>> =>
+    ipcRenderer.invoke('mods:changelog', modId),
   installMod: (modId: string, fileName?: string): Promise<IpcResult<string[]>> =>
     ipcRenderer.invoke('mods:install', modId, fileName),
   updateMod: (modId: string): Promise<IpcResult<string[]>> =>

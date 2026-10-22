@@ -20,7 +20,7 @@ import { useI18n } from '@/hooks/useI18n'
 import { sanitizeHtml } from '@/lib/sanitizeHtml'
 import { cn } from '@/lib/utils'
 import InstallButton from './InstallButton'
-import type { Mod, ModDownload } from '../../../mission/types'
+import type { Mod, ModChangelogEntry, ModDownload } from '../../../mission/types'
 
 /** Dimensione leggibile di un file. */
 function formatSize(bytes: number): string {
@@ -56,12 +56,16 @@ function Details({ mod }: { mod: Mod }): React.JSX.Element {
     [mod.description]
   )
 
+  const [changelog, setChangelog] = useState<ModChangelogEntry[]>([])
+
   useEffect(() => {
     window.api.getDownloads(mod.id).then((result) => {
       if (!result.ok) return setDownloadsError(result.error)
       setDownloads(result.data)
       setFileName(result.data[0]?.name)
     })
+    // il changelog è facoltativo: se non arriva la sezione semplicemente non compare
+    window.api.getChangelog(mod.id).then((result) => result.ok && setChangelog(result.data))
   }, [mod.id])
 
   const images = mod.images
@@ -171,6 +175,36 @@ function Details({ mod }: { mod: Mod }): React.JSX.Element {
             ))}
           </ul>
         </div>
+      )}
+
+      {changelog.length > 0 && (
+        <details className="space-y-2">
+          <summary className="cursor-pointer font-medium">{t('details.changelog')}</summary>
+          <ol className="mt-2 space-y-3">
+            {changelog.map((entry) => (
+              <li key={`${entry.date}-${entry.title}`}>
+                <div className="font-medium">
+                  {entry.title}
+                  <span className="font-normal text-muted-foreground">
+                    {' · '}
+                    {entry.version && `${t('details.version', { version: entry.version })} · `}
+                    {formatDate(entry.date)}
+                  </span>
+                </div>
+                {entry.changes.length > 0 && (
+                  <ul className="list-disc pl-5 text-muted-foreground">
+                    {entry.changes.map((c, i) => (
+                      <li key={i}>
+                        {c.category && <span className="text-foreground">{c.category}: </span>}
+                        {c.text}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            ))}
+          </ol>
+        </details>
       )}
 
       <div className="flex flex-wrap items-center gap-2 border-t pt-4">

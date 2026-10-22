@@ -1,114 +1,197 @@
 import { AppError } from '../i18n'
-import type { GbCounts, GbIndexPage, GbProfile, SubmissionType } from './types'
+import type {
+  GbDownloadPage,
+  GbHydration,
+  GbIndexPage,
+  GbUpdatesPage,
+  SubmissionType
+} from './types'
+
+/*
+ * Endpoint e limiti sono gli stessi dell'app ufficiale (deadlock-mod-manager, file
+ * `providers/gamebanana/client.rs` e `transport.rs`), così il carico su GameBanana è quello
+ * che hanno già concordato in pratica.
+ */
 
 const API = 'https://gamebanana.com/apiv11/'
 /** La chiamata multipla `Core/Item/Data` esiste solo sul vecchio host dell'API. */
 const LEGACY_API = 'https://api.gamebanana.com/'
 /** Id di Deadlock su GameBanana. */
 export const DEADLOCK_GAME_ID = 20948
-/** Elementi per pagina dell'indice (il massimo che usa anche l'app ufficiale). */
+/** Elementi per pagina dell'indice. */
 export const INDEX_PAGE_SIZE = 50
-/** Id per richiesta di contatori: 50 funziona e resta sotto i 3.000 caratteri di URL. */
-const COUNTS_BATCH_SIZE = 50
-/** Richieste contemporanee verso GameBanana, per non sovraccaricarlo. */
+/** Ultima pagina dell'indice che l'app ufficiale accetta di chiedere. */
+const MAX_INDEX_PAGE = 250
+/**
+ * Mod per richiesta di idratazione: ogni elemento ripete tutti i campi, e con 50 l'URL
+ * diventa troppo lungo (GameBanana risponde 414).
+ */
+export const HYDRATION_BATCH_SIZE = 40
+const HYDRATION_FIELDS = [
+  'name',
+  'downloads',
+  'Category().name',
+  'RootCategory().name',
+  'description',
+  'text',
+  'Files().aFiles()'
+].join(',')
+const UPDATES_PAGE_SIZE = 20
+
 const MAX_CONCURRENCY = 4
-const MAX_ATTEMPTS = 4
+const MAX_REQUESTS_PER_SECOND = 10
+const MAX_RETRIES = 3
+const BASE_RETRY_DELAY_MS = 500
+/** Se GameBanana chiede di aspettare più di così, ci si ferma e si riprova alla prossima sincronizzazione. */
+const MAX_RETRY_DELAY_MS = 30_000
+const REQUEST_TIMEOUT_MS = 30_000
 const USER_AGENT = 'DeadlockModManager (+https://github.com/NightHvnter/DeadlockModManager)'
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
 
-/** Limita il numero di funzioni asincrone in esecuzione contemporaneamente. */
-class Limiter {
+/** Al massimo `MAX_CONCURRENCY` richieste insieme e `MAX_REQUESTS_PER_SECOND` al secondo. */
+class RateLimiter {
   private active = 0
   private waiting: (() => void)[] = []
-
-  constructor(private readonly max: number) {}
+  /** Istanti di partenza delle richieste dell'ultimo secondo. */
+  private starts: number[] = []
 
   async run<T>(fn: () => Promise<T>): Promise<T> {
-    if (this.active >= this.max) await new Promise<void>((r) => this.waiting.push(r))
+    if (this.active >= MAX_CONCURRENCY) await new Promise<void>((r) => this.waiting.push(r))
     this.active++
     try {
+      await this.waitForWindow()
       return await fn()
     } finally {
       this.active--
       this.waiting.shift()?.()
     }
   }
+
+  private async waitForWindow(): Promise<void> {
+    for (;;) {
+      const now = Date.now()
+      this.starts = this.starts.filter((t) => now - t < 1000)
+      if (this.starts.length < MAX_REQUESTS_PER_SECOND) {
+        this.starts.push(now)
+        return
+      }
+      await sleep(1000 - (now - this.starts[0]))
+    }
+  }
 }
 
-/** Client dell'API di GameBanana con limite di concorrenza e nuovi tentativi. */
+/** Attesa richiesta da `Retry-After`, in secondi o come data HTTP. */
+function retryAfterMs(header: string | null): number | undefined {
+  if (!header) return undefined
+  const seconds = Number(header)
+  if (Number.isFinite(seconds)) return seconds * 1000
+  const date = Date.parse(header)
+  return Number.isNaN(date) ? undefined : Math.max(0, date - Date.now())
+}
+
+/** `Files().aFiles()` è un oggetto con i file indicizzati per id; serve la data del più recente. */
+function latestFileDate(files: unknown): number | null {
+  if (!files || typeof files !== 'object') return null
+  const dates = Object.values(files as Record<string, { _tsDateAdded?: number }>)
+    .map((f) => f?._tsDateAdded ?? 0)
+    .filter((d) => d > 0)
+  return dates.length ? Math.max(...dates) : null
+}
+
+/** Client dell'API di GameBanana con limiti di velocità e nuovi tentativi. */
 export class GameBananaClient {
-  private readonly limiter = new Limiter(MAX_CONCURRENCY)
+  private readonly limiter = new RateLimiter()
 
   /** Richieste fatte da quando il client esiste, utile per capire quanto pesa una sincronizzazione. */
   public requests = 0
 
   /**
-   * GET di un JSON. Ritenta gli errori di rete, 429 e 5xx con attese crescenti
-   * (rispettando `Retry-After` se presente).
+   * GET di un JSON. Ritenta errori di rete, timeout, 429 e 5xx con attese crescenti,
+   * rispettando `Retry-After`.
    */
   private get<T>(url: string): Promise<T> {
     return this.limiter.run(async () => {
-      for (let attempt = 1; ; attempt++) {
+      for (let attempt = 0; ; attempt++) {
         this.requests++
+        let delay = Math.min(BASE_RETRY_DELAY_MS * 2 ** attempt, MAX_RETRY_DELAY_MS)
         let status = 0
         try {
-          const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } })
+          const res = await fetch(url, {
+            headers: { 'User-Agent': USER_AGENT },
+            signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+          })
           status = res.status
           if (res.ok) return (await res.json()) as T
           if (status !== 429 && status < 500) throw new AppError('error.api', { status })
+          delay = retryAfterMs(res.headers.get('retry-after')) ?? delay
         } catch (e) {
-          if (e instanceof AppError || attempt >= MAX_ATTEMPTS) throw e
+          if (e instanceof AppError) throw e
         }
-        if (attempt >= MAX_ATTEMPTS) throw new AppError('error.api', { status })
-        await sleep(500 * 2 ** (attempt - 1))
+        if (attempt >= MAX_RETRIES || delay > MAX_RETRY_DELAY_MS)
+          throw new AppError('error.api', { status })
+        await sleep(delay)
       }
     })
   }
 
-  /** Pagina dell'indice delle mod di Deadlock, dalla modificata più di recente. */
-  indexPage(type: SubmissionType, page: number): Promise<GbIndexPage> {
+  /**
+   * Pagina dell'indice delle mod di Deadlock. La sincronizzazione completa usa l'ordine dalla
+   * più vecchia (`latestModified = false`): le nuove mod si aggiungono in fondo e le pagine non
+   * scorrono durante la lettura. Quella incrementale parte dalla modificata più di recente.
+   */
+  async indexPage(type: SubmissionType, page: number, latestModified: boolean): Promise<GbIndexPage> {
+    if (page < 1 || page > MAX_INDEX_PAGE) throw new AppError('error.api', { status: 400 })
     const params = new URLSearchParams({
       _nPerpage: String(INDEX_PAGE_SIZE),
       '_aFilters[Generic_Game]': String(DEADLOCK_GAME_ID),
       _nPage: String(page),
-      _sSort: 'Generic_LatestModified'
+      _sSort: latestModified ? 'Generic_LatestModified' : 'Generic_Oldest'
     })
     return this.get(`${API}${type}/Index?${params}`)
   }
 
-  /** Dettagli completi di una mod: descrizione, file, contatori. */
-  profile(type: SubmissionType, id: number): Promise<GbProfile> {
-    return this.get(`${API}${type}/${id}/ProfilePage`)
+  /**
+   * Download, categorie, descrizione e data dei file di al massimo `HYDRATION_BATCH_SIZE` mod
+   * dello stesso tipo, con una sola richiesta. Per le mod che non esistono più restituisce `null`.
+   */
+  async hydrate(type: SubmissionType, ids: number[]): Promise<(GbHydration | null)[]> {
+    if (ids.length === 0) return []
+    if (ids.length > HYDRATION_BATCH_SIZE) throw new AppError('error.api', { status: 414 })
+    const params = new URLSearchParams()
+    for (const id of ids) {
+      params.append('itemtype[]', type)
+      params.append('itemid[]', String(id))
+      params.append('fields[]', HYDRATION_FIELDS)
+    }
+    // risposta: un array per mod, con i campi nell'ordine richiesto
+    const rows = await this.get<unknown>(`${LEGACY_API}Core/Item/Data?${params}`)
+    if (!Array.isArray(rows) || rows.length !== ids.length) throw new AppError('error.api', { status: 502 })
+    return rows.map((row) => {
+      if (!Array.isArray(row) || typeof row[0] !== 'string') return null
+      return {
+        name: row[0],
+        downloads: Number(row[1]) || 0,
+        category: typeof row[2] === 'string' ? row[2] : '',
+        rootCategory: typeof row[3] === 'string' ? row[3] : '',
+        description: typeof row[4] === 'string' ? row[4] : '',
+        text: typeof row[5] === 'string' ? row[5] : '',
+        filesUpdatedAt: latestFileDate(row[6])
+      }
+    })
   }
 
-  /** Download e "mi piace" di molte mod, a gruppi di `COUNTS_BATCH_SIZE` per richiesta. */
-  async counts(items: { type: SubmissionType; id: number }[]): Promise<Map<string, GbCounts>> {
-    const result = new Map<string, GbCounts>()
-    const batches: (typeof items)[] = []
-    for (let i = 0; i < items.length; i += COUNTS_BATCH_SIZE)
-      batches.push(items.slice(i, i + COUNTS_BATCH_SIZE))
+  /** File scaricabili di una mod. */
+  downloadPage(type: SubmissionType, id: number): Promise<GbDownloadPage> {
+    return this.get(`${API}${type}/${id}/DownloadPage`)
+  }
 
-    await Promise.all(
-      batches.map(async (batch) => {
-        const query = batch
-          .map(
-            ({ type, id }) =>
-              `itemtype[]=${type}&itemid[]=${id}&fields[]=downloads,likes`
-          )
-          .join('&')
-        // la risposta è un array nello stesso ordine della richiesta: [[downloads, likes], ...]
-        const rows = await this.get<[number, number][]>(`${LEGACY_API}Core/Item/Data?${query}`)
-        batch.forEach(({ type, id }, i) => {
-          const row = rows[i]
-          if (Array.isArray(row))
-            result.set(`${type}-${id}`, { downloads: Number(row[0]) || 0, likes: Number(row[1]) || 0 })
-        })
-      })
-    )
-    return result
+  /** Pagina del changelog di una mod, dalla voce più recente. */
+  updates(type: SubmissionType, id: number, page: number): Promise<GbUpdatesPage> {
+    const params = new URLSearchParams({ _nPage: String(page), _nPerpage: String(UPDATES_PAGE_SIZE) })
+    return this.get(`${API}${type}/${id}/Updates?${params}`)
   }
 }
 
-/** Client condiviso da catalogo e installazione, così il limite di concorrenza vale per tutti. */
+/** Client condiviso da catalogo e installazione, così i limiti valgono per tutte le richieste. */
 export const gameBanana = new GameBananaClient()
