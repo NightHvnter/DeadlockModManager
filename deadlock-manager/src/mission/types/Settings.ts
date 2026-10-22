@@ -1,4 +1,5 @@
 import type { Language } from '../i18n'
+import type { InterfaceColors } from './InterfaceColors'
 
 /** Impostazioni dell'app salvate in `userData/settings.json`. */
 export interface Settings {
@@ -14,11 +15,14 @@ export interface Settings {
    * controllato in altri momenti.
    */
   autoRepairGameinfo: boolean
+  /** Colori dell'interfaccia del gioco scelti dall'utente; vuoto per quelli originali. */
+  interfaceColors: InterfaceColors
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   gamePath: null,
   includeNSFW: false,
   language: null,
-  autoRepairGameinfo: true
+  autoRepairGameinfo: true,
+  interfaceColors: {}
 }

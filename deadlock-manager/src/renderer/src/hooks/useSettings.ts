@@ -6,6 +6,8 @@ export interface SettingsContextValue {
   settings: Settings | null
   /** Salva una parte delle impostazioni; restituisce `false` (e mostra l'errore) se fallisce. */
   update: (patch: Partial<Settings>) => Promise<boolean>
+  /** Rilegge le impostazioni, dopo che il processo main le ha cambiate da solo. */
+  reload: () => Promise<void>
   /** Cerca Deadlock nelle librerie di Steam. */
   detectGamePath: () => Promise<void>
   /** Fa scegliere la cartella del gioco all'utente. */

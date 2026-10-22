@@ -34,6 +34,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }): R
     sheetOpen,
     setSheetOpen,
     update: async (patch: Partial<Settings>) => apply(await window.api.setSettings(patch)),
+    reload: async () => setSettings(await window.api.getSettings()),
     detectGamePath: async () => {
       if (apply(await window.api.detectGamePath()))
         toast.success(translate(language, 'settings.gameFound'))
