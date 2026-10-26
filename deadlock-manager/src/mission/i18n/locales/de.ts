@@ -150,6 +150,11 @@ export const de: Messages = {
   'details.version': 'Version {version}',
 
   'installed.search': 'Installierte Mods durchsuchen...',
+  'installed.show': 'Anzeigen',
+  'installed.show.all': 'Alle',
+  'installed.show.enabled': 'Aktiviert',
+  'installed.show.disabled': 'Deaktiviert',
+  'installed.noMatch': 'Keine Mods entsprechen den Filtern.',
   'installed.count': '{count} installiert',
   'installed.toUpdate': ', {count} zu aktualisieren',
   'installed.openAddons': 'Addons-Ordner öffnen',
