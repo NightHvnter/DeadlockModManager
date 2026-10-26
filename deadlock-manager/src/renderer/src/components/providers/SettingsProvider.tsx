@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { SettingsContext } from '@/hooks/useSettings'
 import { detectLanguage, translate } from '../../../../mission/i18n'
-import type { IpcResult, Settings } from '../../../../mission/types'
+import { TEXT_SIZES, type IpcResult, type Settings } from '../../../../mission/types'
 
 /** Carica le impostazioni dal processo main e le rende disponibili con `useSettings`. */
 export function SettingsProvider({ children }: { children: React.ReactNode }): React.JSX.Element {
@@ -18,6 +18,17 @@ export function SettingsProvider({ children }: { children: React.ReactNode }): R
   useEffect(() => {
     document.documentElement.lang = language
   }, [language])
+
+  // accessibilità: le dimensioni di Tailwind sono in rem, quindi seguono la dimensione del testo
+  const textSize = settings?.textSize ?? 'normal'
+  const reduceMotion = settings?.reduceMotion ?? false
+  const highContrast = settings?.highContrast ?? false
+  useEffect(() => {
+    const root = document.documentElement
+    root.style.fontSize = `${TEXT_SIZES[textSize] ?? 100}%`
+    root.classList.toggle('reduce-motion', reduceMotion)
+    root.classList.toggle('high-contrast', highContrast)
+  }, [textSize, reduceMotion, highContrast])
 
   /** Applica l'esito di una modifica: aggiorna lo stato oppure mostra l'errore. */
   function apply(result: IpcResult<Settings | null>): boolean {

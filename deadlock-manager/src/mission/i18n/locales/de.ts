@@ -28,6 +28,8 @@ export const de: Messages = {
   'settings.language': 'Sprache',
   'settings.languageSystem': 'Systemsprache',
   'settings.theme': 'Design',
+  'settings.content': 'Inhalte',
+  'settings.contentDescription': 'Welche Mods im Katalog angezeigt werden',
   'settings.nsfw': 'NSFW-Mods anzeigen',
   'settings.modList': 'Mod-Liste',
   'settings.modCount': '{count} Mods',
@@ -43,6 +45,20 @@ export const de: Messages = {
   'theme.system': 'System',
   'theme.ocean': 'Ozean',
   'theme.forest': 'Wald',
+
+  'a11y.title': 'Barrierefreiheit',
+  'a11y.description': 'Macht die App leichter lesbar und bedienbar.',
+  'a11y.textSize': 'Textgröße',
+  'a11y.textSize.small': 'Klein',
+  'a11y.textSize.normal': 'Normal',
+  'a11y.textSize.large': 'Groß',
+  'a11y.textSize.xlarge': 'Sehr groß',
+  'a11y.reduceMotion': 'Bewegung reduzieren',
+  'a11y.reduceMotionHint': 'Entfernt Animationen und Übergänge. Sie werden auch entfernt, wenn das System reduzierte Bewegung verlangt.',
+  'a11y.highContrast': 'Hoher Kontrast',
+  'a11y.highContrastHint': 'Kräftigere Nebentexte, Rahmen und Fokusrahmen.',
+  'a11y.gameColors': 'Spielfarben für Farbenblinde',
+  'a11y.gameColorsHint': 'Auf der Seite Farben ändert das Preset Farbenblind die Farben von Gegnern, Verbündeten und Lebensleisten in Deadlock.',
 
   'colors.title': 'Oberflächenfarben',
   'colors.description':
@@ -84,6 +100,7 @@ export const de: Messages = {
   'colors.hint.tech': 'Blaue Details',
 
   'interchange.title': 'Mods importieren und exportieren',
+  'interchange.summary': 'Mods von und zu anderen Mod-Managern übertragen',
   'interchange.description':
     'Übertrage deine Mods von und zu anderen Mod-Managern wie dem offiziellen Deadlock Mod Manager oder auf einen anderen Computer. Verwendet wird das offene Format Deadlock Mod Interchange: ein Ordner mit der Datei mod-interchange.json und einer Kopie der VPKs.',
   'interchange.import': 'Importieren',

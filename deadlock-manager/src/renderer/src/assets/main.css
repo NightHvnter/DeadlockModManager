@@ -183,3 +183,48 @@
   --primary-foreground: oklch(0.15 0.03 150);
   --border: oklch(0.35 0.03 150);
 }
+
+/*
+ * Accessibilità (impostazioni → Accessibilità). Le animazioni si tolgono anche quando lo chiede il
+ * sistema operativo, senza bisogno dell'impostazione.
+ */
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Contrasto elevato: testi secondari, bordi e campi più marcati, sia nei temi chiari che scuri */
+.high-contrast {
+  --muted-foreground: oklch(0.32 0 0);
+  --border: oklch(0.45 0 0);
+  --input: oklch(0.45 0 0);
+  --ring: oklch(0.2 0 0);
+}
+
+.dark.high-contrast {
+  --foreground: oklch(1 0 0);
+  --muted-foreground: oklch(0.88 0 0);
+  --border: oklch(1 0 0 / 45%);
+  --input: oklch(1 0 0 / 55%);
+  --ring: oklch(0.95 0 0);
+}
+
+.high-contrast :focus-visible {
+  outline: 2px solid var(--foreground) !important;
+  outline-offset: 2px;
+}

@@ -1,6 +1,11 @@
 import type { Language } from '../i18n'
 import type { InterfaceColors } from './InterfaceColors'
 
+/** Dimensioni del testo dell'app, in percentuale di quella normale. */
+export const TEXT_SIZES = { small: 87.5, normal: 100, large: 112.5, xlarge: 125 } as const
+export type TextSize = keyof typeof TEXT_SIZES
+export const TEXT_SIZE_IDS = Object.keys(TEXT_SIZES) as TextSize[]
+
 /** Impostazioni dell'app salvate in `userData/settings.json`. */
 export interface Settings {
   /** Cartella di installazione di Deadlock (quella che contiene `game/citadel`). */
@@ -17,6 +22,12 @@ export interface Settings {
   autoRepairGameinfo: boolean
   /** Colori dell'interfaccia del gioco scelti dall'utente; vuoto per quelli originali. */
   interfaceColors: InterfaceColors
+  /** Dimensione del testo e di tutta l'interfaccia dell'app. */
+  textSize: TextSize
+  /** Se `true` toglie animazioni e transizioni (vale anche se lo chiede il sistema). */
+  reduceMotion: boolean
+  /** Se `true` rende più scuri (o chiari) testi secondari, bordi e contorno di selezione. */
+  highContrast: boolean
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -24,5 +35,8 @@ export const DEFAULT_SETTINGS: Settings = {
   includeNSFW: false,
   language: null,
   autoRepairGameinfo: true,
-  interfaceColors: {}
+  interfaceColors: {},
+  textSize: 'normal',
+  reduceMotion: false,
+  highContrast: false
 }

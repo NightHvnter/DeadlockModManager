@@ -27,6 +27,8 @@ export const it = {
   'settings.language': 'Lingua',
   'settings.languageSystem': 'Lingua di sistema',
   'settings.theme': 'Tema',
+  'settings.content': 'Contenuti',
+  'settings.contentDescription': 'Quali mod mostrare nel catalogo',
   'settings.nsfw': 'Mostra le mod NSFW',
   'settings.modList': 'Elenco delle mod',
   'settings.modCount': '{count} mod',
@@ -42,6 +44,20 @@ export const it = {
   'theme.system': 'Sistema',
   'theme.ocean': 'Oceano',
   'theme.forest': 'Foresta',
+
+  'a11y.title': 'Accessibilità',
+  'a11y.description': "Rende l'app più facile da leggere e da usare.",
+  'a11y.textSize': 'Dimensione del testo',
+  'a11y.textSize.small': 'Piccolo',
+  'a11y.textSize.normal': 'Normale',
+  'a11y.textSize.large': 'Grande',
+  'a11y.textSize.xlarge': 'Molto grande',
+  'a11y.reduceMotion': 'Riduci le animazioni',
+  'a11y.reduceMotionHint': 'Toglie animazioni e transizioni. Vengono tolte anche quando il sistema chiede di ridurre il movimento.',
+  'a11y.highContrast': 'Contrasto elevato',
+  'a11y.highContrastHint': 'Testi secondari, bordi e contorno degli elementi selezionati più marcati.',
+  'a11y.gameColors': 'Colori del gioco per daltonici',
+  'a11y.gameColorsHint': 'Nella pagina Colori il preset Daltonici cambia i colori di nemici, alleati e barre della vita in Deadlock.',
 
   'colors.title': 'Colori interfaccia',
   'colors.description':
@@ -83,6 +99,7 @@ export const it = {
   'colors.hint.tech': 'Dettagli azzurri',
 
   'interchange.title': 'Importa ed esporta le mod',
+  'interchange.summary': 'Sposta le mod da e verso altri mod manager',
   'interchange.description':
     'Sposta le tue mod da e verso altri mod manager, come il Deadlock Mod Manager ufficiale, o su un altro computer. Si usa il formato aperto Deadlock Mod Interchange: una cartella con il file mod-interchange.json e una copia dei VPK.',
   'interchange.import': 'Importa',
