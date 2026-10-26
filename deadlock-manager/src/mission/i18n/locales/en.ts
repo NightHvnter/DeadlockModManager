@@ -45,6 +45,15 @@ export const en: Messages = {
   'theme.ocean': 'Ocean',
   'theme.forest': 'Forest',
 
+  'local.button': 'Install from file',
+  'local.tooltip': 'Install mods from .zip, .rar or .vpk files on your computer. You can also drag them into the window.',
+  'local.installing': 'Installing mods...',
+  'local.installed': '{count} mods installed',
+  'local.failed': 'Could not install {file}',
+  'local.unsupported': 'Some files were ignored: only .zip, .rar and .vpk can be installed',
+  'local.dropTitle': 'Drop here to install',
+  'local.dropHint': '.zip, .rar or .vpk files: they become external mods, which you can link to GameBanana.',
+
   'conflicts.summary': '{count} conflicts between mods: some enabled mods change the same files. The game uses the ones from the mod higher in the load order.',
   'conflicts.show': 'Show conflicting mods',
   'conflicts.title': 'Conflicts between mods',
@@ -245,6 +254,7 @@ export const en: Messages = {
   'dialog.errorTitle': 'Error',
   'dialog.loadModsFailed': 'Unable to load mods: {message}',
   'dialog.chooseGameFolder': 'Select the Deadlock folder',
+  'dialog.chooseModFiles': 'Choose the mod files to install',
   'dialog.chooseExportFolder': 'Choose where to save the exported mods',
   'dialog.chooseImportFile': 'Choose the mod-interchange.json file to import',
 

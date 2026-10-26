@@ -15,7 +15,13 @@ export {
   TEXT_SIZES,
   TEXT_SIZE_IDS
 } from './Settings'
-export type { InstalledMod, InstalledModInfo, InstallProgress, ModConflict } from './Installed'
+export type {
+  InstalledMod,
+  InstalledModInfo,
+  InstallProgress,
+  LocalInstallResult,
+  ModConflict
+} from './Installed'
 export type { GameinfoStatus } from './Game'
 export { type UpdateStatus, RELEASES_URL } from './Update'
 export {

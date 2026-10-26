@@ -93,9 +93,8 @@ export class ManageMods {
   }
 
   /**
-   * Scarica ed estrae la mod fuori dalla coda delle operazioni, così un download lungo non blocca
-   * l'elenco delle mod installate, l'ordine di caricamento o "Gioca"; entra nella coda solo per
-   * copiare i VPK in `addons` e aggiornare il manifest, dove serve scegliere i `pakNN` liberi.
+   * Scarica la mod fuori dalla coda delle operazioni, così un download lungo non blocca l'elenco
+   * delle mod installate, l'ordine di caricamento o "Gioca"; poi la installa con `installArchive`.
    */
   private static async doInstall(
     mod: Mod,
@@ -105,11 +104,7 @@ export class ManageMods {
   ): Promise<string[]> {
     if ((await readManifest())[mod.id]) throw new AppError('error.alreadyInstalled')
 
-    const citadel = join(gamePath, 'game', 'citadel')
-    const addons = join(citadel, 'addons')
     const tmp = await mkdtemp(join(tmpdir(), 'deadlock-mod-'))
-    const installed: string[] = []
-
     try {
       const file = download ?? (await this.getDownloads(mod.id))[0]
       if (!file) throw new AppError('error.noDownloads')
@@ -121,30 +116,116 @@ export class ManageMods {
         throw new AppError('error.checksum')
       }
 
-      // 2. Estrazione
-      const extracted = join(tmp, 'extracted')
-      await mkdir(extracted)
-      const ext = extname(file.name).toLowerCase()
-      if (ext === '.zip') await extract(archive, extracted)
-      else if (ext === '.rar') await extractRar(archive, extracted)
-      else if (ext === '.vpk') await copyFile(archive, join(extracted, basename(archive)))
-      else throw new AppError('error.unsupportedFormat', { ext })
-
-      // 3. Copia dei VPK in addons con il prefisso pakNN (nella coda delle operazioni). Due formati:
-      //    - VPK diviso: `<nome>_dir.vpk` più le parti `<nome>_000.vpk`, `<nome>_001.vpk`, ...
-      //    - VPK a file unico: `<nome>.vpk`, che il gioco carica rinominato `pakNN_dir.vpk`
-      const all = (await readdir(extracted, { recursive: true })).filter((f) =>
-        f.toLowerCase().endsWith('.vpk')
-      )
-      const split = all.filter((f) => f.toLowerCase().endsWith('_dir.vpk'))
-      const single = all.filter(
-        (f) => !f.toLowerCase().endsWith('_dir.vpk') && !/_\d{3}\.vpk$/i.test(f)
-      )
-      if (split.length + single.length === 0) throw new AppError('error.noVpk')
-
-      return await this.exclusive(async () => {
+      return await this.installArchive(archive, tmp, gamePath, (manifest) => {
         // durante il download potrebbe essere stata installata da un'altra richiesta
-        if ((await readManifest())[mod.id]) throw new AppError('error.alreadyInstalled')
+        if (manifest[mod.id]) throw new AppError('error.alreadyInstalled')
+        return {
+          id: mod.id,
+          files: [],
+          enabled: true,
+          installedAt: new Date().toISOString(),
+          fileName: file.name,
+          name: mod.name,
+          author: mod.author,
+          category: mod.category,
+          hero: mod.hero,
+          image: mod.thumbnailUrl ?? mod.images[0] ?? null
+        }
+      })
+    } finally {
+      await rm(tmp, { recursive: true, force: true })
+    }
+  }
+
+  /**
+   * Installa una mod da un file sul computer (`.zip`, `.rar` o `.vpk`), per esempio scaricato a
+   * mano o non pubblicato su GameBanana. Diventa una mod esterna (`Local-<nome del file>`), con
+   * il nome del file e la categoria e l'eroe ricavati dal contenuto; si può collegare a una mod di
+   * GameBanana dalla pagina Installate.
+   */
+  public static async installLocal(path: string, gamePath: string): Promise<InstalledMod> {
+    const tmp = await mkdtemp(join(tmpdir(), 'deadlock-mod-'))
+    try {
+      const name = basename(path, extname(path))
+      const addons = join(gamePath, 'game', 'citadel', 'addons')
+      let id = ''
+      const files = await this.installArchive(path, tmp, gamePath, (manifest) => {
+        const base = `Local-${slugify(name, 40)}`
+        id = base
+        for (let n = 2; manifest[id]; n++) id = `${base}-${n}`
+        return {
+          id,
+          files: [],
+          enabled: true,
+          installedAt: new Date().toISOString(),
+          fileName: basename(path),
+          name,
+          author: '',
+          category: '',
+          hero: null,
+          image: null,
+          external: true
+        }
+      })
+      // categoria ed eroe dal contenuto, come per le mod trovate in addons
+      const dir = files.find((f) => /_dir\.vpk$/i.test(f))
+      const info = dir && (await guessExternalInfo(join(addons, dir)))
+      return this.exclusive(async () => {
+        const manifest = await readManifest()
+        if (info && manifest[id]) {
+          manifest[id].category = info.category
+          manifest[id].hero = info.hero
+          await writeManifest(manifest)
+        }
+        return manifest[id]
+      })
+    } finally {
+      await rm(tmp, { recursive: true, force: true })
+    }
+  }
+
+  /**
+   * Estrae `archive` (`.zip`, `.rar` o `.vpk`) nella cartella temporanea `tmp` e copia i suoi VPK
+   * in `addons` con il prefisso `pakNN`, poi registra la mod nel manifest con la voce data da
+   * `entry` (che riceve il manifest attuale e può rifiutare con un errore). Solo la copia e il
+   * manifest passano dalla coda delle operazioni, dove serve scegliere i `pakNN` liberi.
+   * @returns i file copiati in `addons`
+   */
+  private static async installArchive(
+    archive: string,
+    tmp: string,
+    gamePath: string,
+    entry: (manifest: Record<string, InstalledMod>) => InstalledMod
+  ): Promise<string[]> {
+    const citadel = join(gamePath, 'game', 'citadel')
+    const addons = join(citadel, 'addons')
+    const installed: string[] = []
+
+    // 2. Estrazione
+    const extracted = join(tmp, 'extracted')
+    await mkdir(extracted)
+    const ext = extname(archive).toLowerCase()
+    if (ext === '.zip') await extract(archive, extracted)
+    else if (ext === '.rar') await extractRar(archive, extracted)
+    else if (ext === '.vpk') await copyFile(archive, join(extracted, basename(archive)))
+    else throw new AppError('error.unsupportedFormat', { ext })
+
+    // 3. Copia dei VPK in addons con il prefisso pakNN. Due formati:
+    //    - VPK diviso: `<nome>_dir.vpk` più le parti `<nome>_000.vpk`, `<nome>_001.vpk`, ...
+    //    - VPK a file unico: `<nome>.vpk`, che il gioco carica rinominato `pakNN_dir.vpk`
+    const all = (await readdir(extracted, { recursive: true })).filter((f) =>
+      f.toLowerCase().endsWith('.vpk')
+    )
+    const split = all.filter((f) => f.toLowerCase().endsWith('_dir.vpk'))
+    const single = all.filter(
+      (f) => !f.toLowerCase().endsWith('_dir.vpk') && !/_\d{3}\.vpk$/i.test(f)
+    )
+    if (split.length + single.length === 0) throw new AppError('error.noVpk')
+
+    try {
+      return await this.exclusive(async () => {
+        const manifest = await readManifest()
+        const item = entry(manifest)
         await mkdir(addons, { recursive: true })
         for (const rel of split) {
           const dir = join(extracted, dirname(rel))
@@ -160,19 +241,7 @@ export class ManageMods {
         // 4. Abilita la cartella addons nel gioco
         await this.ensureAddonsSearchPath(citadel)
 
-        const manifest = await readManifest()
-        manifest[mod.id] = {
-          id: mod.id,
-          files: installed,
-          enabled: true,
-          installedAt: new Date().toISOString(),
-          fileName: file.name,
-          name: mod.name,
-          author: mod.author,
-          category: mod.category,
-          hero: mod.hero,
-          image: mod.thumbnailUrl ?? mod.images[0] ?? null
-        }
+        manifest[item.id] = { ...item, files: installed }
         await writeManifest(manifest)
         return installed
       })
@@ -180,8 +249,6 @@ export class ManageMods {
       // non lascia in addons i file di un'installazione a metà
       await Promise.all(installed.map((f) => rm(join(addons, f), { force: true })))
       throw e
-    } finally {
-      await rm(tmp, { recursive: true, force: true })
     }
   }
 

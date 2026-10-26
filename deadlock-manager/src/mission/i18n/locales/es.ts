@@ -46,6 +46,15 @@ export const es: Messages = {
   'theme.ocean': 'Océano',
   'theme.forest': 'Bosque',
 
+  'local.button': 'Instalar desde archivo',
+  'local.tooltip': 'Instala mods desde archivos .zip, .rar o .vpk de tu ordenador. También puedes arrastrarlos a la ventana.',
+  'local.installing': 'Instalando mods...',
+  'local.installed': '{count} mods instalados',
+  'local.failed': 'No se pudo instalar {file}',
+  'local.unsupported': 'Se ignoraron algunos archivos: solo se pueden instalar .zip, .rar y .vpk',
+  'local.dropTitle': 'Suelta aquí para instalar',
+  'local.dropHint': 'Archivos .zip, .rar o .vpk: se convierten en mods externos, que puedes vincular a GameBanana.',
+
   'conflicts.summary': '{count} conflictos entre mods: algunos mods activos cambian los mismos archivos. El juego usa los del mod más arriba en el orden de carga.',
   'conflicts.show': 'Mostrar los mods en conflicto',
   'conflicts.title': 'Conflictos entre mods',
@@ -247,6 +256,7 @@ export const es: Messages = {
   'dialog.errorTitle': 'Error',
   'dialog.loadModsFailed': 'No se pudieron cargar los mods: {message}',
   'dialog.chooseGameFolder': 'Selecciona la carpeta de Deadlock',
+  'dialog.chooseModFiles': 'Elige los archivos de los mods que quieres instalar',
   'dialog.chooseExportFolder': 'Elige dónde guardar los mods exportados',
   'dialog.chooseImportFile': 'Elige el archivo mod-interchange.json que quieres importar',
 

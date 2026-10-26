@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { toast } from 'sonner'
-import { FolderOpen, Link2, ListOrdered, TriangleAlert } from 'lucide-react'
+import { FileUp, FolderOpen, Link2, ListOrdered, TriangleAlert } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -20,6 +20,7 @@ import LinkModDialog from '@/components/LinkModDialog'
 import ConflictsDialog from '@/components/ConflictsDialog'
 import { useI18n } from '@/hooks/useI18n'
 import { useModActions } from '@/hooks/useModActions'
+import { useLocalInstall } from '@/hooks/useLocalInstall'
 import type { InstalledModInfo, ModConflict } from '../../../mission/types'
 
 /** Stati per cui si possono filtrare le mod; il nome di ognuno è alla chiave `installed.show.<id>`. */
@@ -37,6 +38,7 @@ export default function Installed(): React.JSX.Element {
   const [linking, setLinking] = useState<InstalledModInfo | null>(null)
   const [conflicts, setConflicts] = useState<ModConflict[]>([])
   const [conflictsOpen, setConflictsOpen] = useState(false)
+  const localInstall = useLocalInstall()
 
   /** Rilegge i conflitti tra le mod attive; un errore lascia semplicemente l'elenco vuoto. */
   const loadConflicts = (): void =>
@@ -135,6 +137,16 @@ export default function Installed(): React.JSX.Element {
         >
           <ListOrdered className="size-4" />
           {t('installed.loadOrder')}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          title={t('local.tooltip')}
+          disabled={localInstall.installing}
+          onClick={() => localInstall.install()}
+        >
+          <FileUp className="size-4" />
+          {t('local.button')}
         </Button>
         <Button variant="outline" size="sm" onClick={openAddons}>
           <FolderOpen className="size-4" />

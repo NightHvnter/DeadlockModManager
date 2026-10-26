@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
+import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import type {
   GameinfoStatus,
@@ -10,6 +10,7 @@ import type {
   InterfaceColors,
   InterfaceColorsResult,
   IpcResult,
+  LocalInstallResult,
   ModChangelogEntry,
   ModConflict,
   ModDownload,
@@ -51,6 +52,14 @@ const api = {
   getInstalledModsInfo: (): Promise<InstalledModInfo[]> => ipcRenderer.invoke('mods:installedInfo'),
   /** Mod attive dalla priorità più alta (`pak01`) alla più bassa. */
   getLoadOrder: (): Promise<InstalledMod[]> => ipcRenderer.invoke('mods:loadOrder'),
+  /**
+   * Installa mod da file sul computer: i percorsi dati (es. trascinati nella finestra) oppure,
+   * senza percorsi, quelli scelti dall'utente; `data` è `null` se annulla.
+   */
+  installLocalFiles: (paths?: string[]): Promise<IpcResult<LocalInstallResult[] | null>> =>
+    ipcRenderer.invoke('mods:installLocal', paths),
+  /** Percorso sul disco di un file trascinato nella finestra. */
+  getPathForFile: (file: File): string => webUtils.getPathForFile(file),
   /** Mod attive che contengono gli stessi file, con quella che vince. */
   getConflicts: (): Promise<IpcResult<ModConflict[]>> => ipcRenderer.invoke('mods:conflicts'),
   setLoadOrder: (modIds: string[]): Promise<IpcResult<InstalledMod[]>> =>

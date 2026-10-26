@@ -46,6 +46,15 @@ export const de: Messages = {
   'theme.ocean': 'Ozean',
   'theme.forest': 'Wald',
 
+  'local.button': 'Aus Datei installieren',
+  'local.tooltip': 'Installiere Mods aus .zip-, .rar- oder .vpk-Dateien auf deinem Computer. Du kannst sie auch in das Fenster ziehen.',
+  'local.installing': 'Mods werden installiert...',
+  'local.installed': '{count} Mods installiert',
+  'local.failed': '{file} konnte nicht installiert werden',
+  'local.unsupported': 'Einige Dateien wurden ignoriert: Nur .zip, .rar und .vpk können installiert werden',
+  'local.dropTitle': 'Zum Installieren hier ablegen',
+  'local.dropHint': '.zip-, .rar- oder .vpk-Dateien: Sie werden zu externen Mods, die du mit GameBanana verknüpfen kannst.',
+
   'conflicts.summary': '{count} Konflikte zwischen Mods: Einige aktive Mods ändern dieselben Dateien. Das Spiel verwendet die der Mod, die in der Ladereihenfolge weiter oben steht.',
   'conflicts.show': 'Mods mit Konflikten anzeigen',
   'conflicts.title': 'Konflikte zwischen Mods',
@@ -246,6 +255,7 @@ export const de: Messages = {
   'dialog.errorTitle': 'Fehler',
   'dialog.loadModsFailed': 'Mods konnten nicht geladen werden: {message}',
   'dialog.chooseGameFolder': 'Deadlock-Ordner auswählen',
+  'dialog.chooseModFiles': 'Wähle die Mod-Dateien zum Installieren',
   'dialog.chooseExportFolder': 'Wähle, wo die exportierten Mods gespeichert werden',
   'dialog.chooseImportFile': 'Wähle die zu importierende Datei mod-interchange.json',
 
