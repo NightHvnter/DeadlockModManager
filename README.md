@@ -24,6 +24,9 @@ the app → **Open**).
 - Automatic detection of the Deadlock folder in the Steam libraries (Windows, Linux, macOS)
 - **Colors** page to change the colors of Deadlock's own interface (text, enemies, allies, health
   bar, souls, ...) without installing other mods, with ready-made presets such as colorblind
+- Detection of mods added to `addons` by hand or by other managers, also the ones they disabled
+- Import and export of mods to and from other managers (such as the official Deadlock Mod Manager)
+  with the open Deadlock Mod Interchange format, from the settings
 - Light, dark, system, ocean and forest themes
 - Interface in Italian, English, Spanish, French and German (the system language by default)
 
@@ -63,6 +66,28 @@ index. From the **Installed** page → **Load order** you can reorder the enable
 them or with the arrows): when you save, the indices are reassigned in the chosen order, `pak01`
 to the mod at the top. Files in `addons` that were not installed by the app are left untouched.
 Disabled mods are not listed and go to the bottom when they are enabled again.
+
+## Mods from other managers
+
+When the installed mods are listed, `addons` is scanned (code in `src/mission/deadlock/external.ts`):
+
+- `pakNN_dir.vpk` groups the app does not know become **external** mods, named from their
+  contents; the official Deadlock Mod Manager's `addons/.dmm.json` links them to their GameBanana
+  mod when it is in the catalog.
+- Mods **disabled** by other managers are listed as disabled and stay where they are until you
+  enable them here: the official manager's `<id>_<file>.vpk` files in `addons` (`<id>` is the
+  GameBanana id, `snd-<id>` for sounds, `local-<uuid>` for local mods), which also link them to
+  GameBanana, and Grimoire's `addons/.disabled` folder.
+
+**Settings → Import and export mods** uses the official manager's
+[Deadlock Mod Interchange](https://github.com/deadlock-mod-manager/deadlock-mod-manager) format
+(code in `src/mission/deadlock/interchange.ts`):
+
+- **Export** creates `deadlock-mods-export-<date>` with `mod-interchange.json` and a copy of every
+  installed mod's VPKs in `files/`: enabled mods first in load order, then the disabled ones.
+- **Import** reads the `mod-interchange.json` of such a folder: enabled mods go to the bottom of the
+  load order, disabled ones to the app's disabled folder. Mods already installed, with missing
+  files or with a SHA-256 that does not match are skipped. Profiles and crosshairs are ignored.
 
 ## Interface colors
 

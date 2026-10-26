@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { FolderOpen, RefreshCw, Search, Settings } from 'lucide-react'
+import { Download, FolderOpen, RefreshCw, Search, Settings, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -36,6 +36,7 @@ export default function SettingsSheet(): React.JSX.Element {
   const { t, formatNumber, formatTime } = useI18n()
   const [status, setStatus] = useState<Status | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [transferring, setTransferring] = useState(false)
   const languageValue = settings?.language ?? SYSTEM_LANGUAGE
 
   // con il pannello aperto lo stato si aggiorna ogni secondo, per seguire la sincronizzazione
@@ -55,6 +56,36 @@ export default function SettingsSheet(): React.JSX.Element {
       toast.success(t(result.data ? 'settings.listUpdated' : 'settings.listAlreadyUpdated'))
     else toast.error(result.error)
     setStatus(await window.api.getModsStatus())
+  }
+
+  async function exportMods(): Promise<void> {
+    setTransferring(true)
+    const result = await window.api.exportMods()
+    setTransferring(false)
+    if (!result.ok) return void toast.error(result.error)
+    if (!result.data) return
+    toast.success(t('interchange.exported', { count: result.data.exported }), {
+      description: result.data.folder
+    })
+    if (result.data.skipped.length)
+      toast.warning(t('interchange.exportSkipped', { mods: result.data.skipped.join(', ') }))
+  }
+
+  async function importMods(): Promise<void> {
+    setTransferring(true)
+    const result = await window.api.importMods()
+    setTransferring(false)
+    if (!result.ok) return void toast.error(result.error)
+    if (!result.data) return
+    const { imported, skipped } = result.data
+    if (imported > 0) toast.success(t('interchange.imported', { count: imported }))
+    else if (skipped.length === 0) toast.info(t('interchange.importEmpty'))
+    if (skipped.length)
+      toast.warning(t('interchange.importSkipped', { count: skipped.length }), {
+        description: skipped
+          .map((s) => `${s.name}: ${t(`interchange.reason.${s.reason}`)}`)
+          .join('; ')
+      })
   }
 
   async function openAddons(): Promise<void> {
@@ -196,6 +227,32 @@ export default function SettingsSheet(): React.JSX.Element {
                 <RefreshCw className={refreshing ? 'size-4 animate-spin' : 'size-4'} />
                 {t('settings.refreshNow')}
               </Button>
+            </section>
+
+            <section className="grid gap-2">
+              <Label>{t('interchange.title')}</Label>
+              <p className="text-xs text-muted-foreground">{t('interchange.description')}</p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={transferring || !settings?.gamePath}
+                  onClick={importMods}
+                >
+                  <Download className="size-4" />
+                  {t('interchange.import')}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={transferring || !settings?.gamePath}
+                  onClick={exportMods}
+                >
+                  <Upload className="size-4" />
+                  {t('interchange.export')}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">{t('interchange.hint')}</p>
             </section>
           </div>
         </SheetContent>

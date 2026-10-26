@@ -82,6 +82,23 @@ export const it = {
   'colors.hint.souls': 'Contatore e icone delle anime',
   'colors.hint.tech': 'Dettagli azzurri',
 
+  'interchange.title': 'Importa ed esporta le mod',
+  'interchange.description':
+    'Sposta le tue mod da e verso altri mod manager, come il Deadlock Mod Manager ufficiale, o su un altro computer. Si usa il formato aperto Deadlock Mod Interchange: una cartella con il file mod-interchange.json e una copia dei VPK.',
+  'interchange.import': 'Importa',
+  'interchange.export': 'Esporta',
+  'interchange.hint':
+    'Esporta crea la cartella deadlock-mods-export-<data> con tutte le mod installate, attive e disattivate. Per importare scegli il file mod-interchange.json dentro una cartella esportata: le mod già installate vengono saltate. Le mod disattivate da altri manager in addons (come i file <id>_pakNN_dir.vpk del manager ufficiale) vengono rilevate da sole.',
+  'interchange.exported': '{count} mod esportate',
+  'interchange.exportSkipped': 'Saltate perché i file non ci sono più: {mods}',
+  'interchange.imported': '{count} mod importate',
+  'interchange.importEmpty': 'Il pacchetto non contiene mod',
+  'interchange.importSkipped': '{count} mod non importate',
+  'interchange.reason.alreadyInstalled': 'già installata',
+  'interchange.reason.missingFiles': 'file mancanti nel pacchetto',
+  'interchange.reason.checksum': 'file danneggiati (SHA-256 diverso)',
+  'interchange.reason.failed': 'errore durante la copia',
+
   'banner.missing': 'Cartella di Deadlock non trovata: serve per installare le mod.',
   'banner.set': 'Imposta',
 
@@ -177,7 +194,12 @@ export const it = {
   'dialog.errorTitle': 'Errore',
   'dialog.loadModsFailed': 'Impossibile caricare le mod: {message}',
   'dialog.chooseGameFolder': 'Seleziona la cartella di Deadlock',
+  'dialog.chooseExportFolder': 'Scegli dove salvare le mod esportate',
+  'dialog.chooseImportFile': 'Scegli il file mod-interchange.json da importare',
 
+  'error.interchangeUnreadable': 'Impossibile leggere mod-interchange.json',
+  'error.interchangeFormat': 'Il file non è un pacchetto Deadlock Mod Interchange',
+  'error.interchangeVersion': 'Versione del pacchetto non supportata ({version})',
   'error.unknown': 'Errore sconosciuto',
   'error.modNotFound': 'Mod non trovata',
   'error.modUnavailable': 'Mod non più disponibile',

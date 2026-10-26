@@ -83,6 +83,23 @@ export const de: Messages = {
   'colors.hint.souls': 'Seelenzähler und Symbole',
   'colors.hint.tech': 'Blaue Details',
 
+  'interchange.title': 'Mods importieren und exportieren',
+  'interchange.description':
+    'Übertrage deine Mods von und zu anderen Mod-Managern wie dem offiziellen Deadlock Mod Manager oder auf einen anderen Computer. Verwendet wird das offene Format Deadlock Mod Interchange: ein Ordner mit der Datei mod-interchange.json und einer Kopie der VPKs.',
+  'interchange.import': 'Importieren',
+  'interchange.export': 'Exportieren',
+  'interchange.hint':
+    'Exportieren erstellt den Ordner deadlock-mods-export-<Datum> mit allen installierten Mods, aktiv und deaktiviert. Zum Importieren wähle die Datei mod-interchange.json in einem exportierten Ordner: Bereits installierte Mods werden übersprungen. Von anderen Managern in addons deaktivierte Mods (wie die Dateien <id>_pakNN_dir.vpk des offiziellen Managers) werden automatisch erkannt.',
+  'interchange.exported': '{count} Mods exportiert',
+  'interchange.exportSkipped': 'Übersprungen, weil ihre Dateien fehlen: {mods}',
+  'interchange.imported': '{count} Mods importiert',
+  'interchange.importEmpty': 'Das Paket enthält keine Mods',
+  'interchange.importSkipped': '{count} Mods nicht importiert',
+  'interchange.reason.alreadyInstalled': 'bereits installiert',
+  'interchange.reason.missingFiles': 'Dateien fehlen im Paket',
+  'interchange.reason.checksum': 'beschädigte Dateien (SHA-256 stimmt nicht)',
+  'interchange.reason.failed': 'Fehler beim Kopieren',
+
   'banner.missing': 'Deadlock-Ordner nicht gefunden: Er wird zum Installieren von Mods benötigt.',
   'banner.set': 'Festlegen',
 
@@ -178,7 +195,12 @@ export const de: Messages = {
   'dialog.errorTitle': 'Fehler',
   'dialog.loadModsFailed': 'Mods konnten nicht geladen werden: {message}',
   'dialog.chooseGameFolder': 'Deadlock-Ordner auswählen',
+  'dialog.chooseExportFolder': 'Wähle, wo die exportierten Mods gespeichert werden',
+  'dialog.chooseImportFile': 'Wähle die zu importierende Datei mod-interchange.json',
 
+  'error.interchangeUnreadable': 'mod-interchange.json konnte nicht gelesen werden',
+  'error.interchangeFormat': 'Die Datei ist kein Deadlock-Mod-Interchange-Paket',
+  'error.interchangeVersion': 'Nicht unterstützte Paketversion ({version})',
   'error.unknown': 'Unbekannter Fehler',
   'error.modNotFound': 'Mod nicht gefunden',
   'error.modUnavailable': 'Mod nicht mehr verfügbar',

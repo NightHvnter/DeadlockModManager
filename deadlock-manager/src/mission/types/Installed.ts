@@ -20,6 +20,12 @@ export interface InstalledMod {
    * manager o prima di reinstallare l'app): non hanno una mod di GameBanana collegata.
    */
   external?: boolean
+  /**
+   * Per una mod disattivata da un altro manager: cartella in cui sono rimasti i suoi file (es.
+   * `addons` per i file `<id>_pak05_dir.vpk` del Deadlock Mod Manager ufficiale, o
+   * `addons/.disabled` di Grimoire), al posto della cartella delle mod disattivate dell'app.
+   */
+  parkedIn?: string
 }
 
 /** Mod installata con le informazioni ricavate dal catalogo. */
