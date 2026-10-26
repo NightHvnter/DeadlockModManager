@@ -28,6 +28,8 @@ export const fr: Messages = {
   'settings.language': 'Langue',
   'settings.languageSystem': 'Langue du système',
   'settings.theme': 'Thème',
+  'settings.content': 'Contenu',
+  'settings.contentDescription': 'Quels mods afficher dans le catalogue',
   'settings.nsfw': 'Afficher les mods NSFW',
   'settings.modList': 'Liste des mods',
   'settings.modCount': '{count} mods',
@@ -43,6 +45,20 @@ export const fr: Messages = {
   'theme.system': 'Système',
   'theme.ocean': 'Océan',
   'theme.forest': 'Forêt',
+
+  'a11y.title': 'Accessibilité',
+  'a11y.description': "Rend l'app plus facile à lire et à utiliser.",
+  'a11y.textSize': 'Taille du texte',
+  'a11y.textSize.small': 'Petit',
+  'a11y.textSize.normal': 'Normal',
+  'a11y.textSize.large': 'Grand',
+  'a11y.textSize.xlarge': 'Très grand',
+  'a11y.reduceMotion': 'Réduire les animations',
+  'a11y.reduceMotionHint': 'Supprime les animations et les transitions. Elles sont aussi supprimées quand le système demande de réduire les mouvements.',
+  'a11y.highContrast': 'Contraste élevé',
+  'a11y.highContrastHint': 'Textes secondaires, bordures et contour de sélection plus marqués.',
+  'a11y.gameColors': 'Couleurs du jeu pour daltoniens',
+  'a11y.gameColorsHint': 'Sur la page Couleurs, le préréglage Daltonisme change les couleurs des ennemis, des alliés et des barres de vie dans Deadlock.',
 
   'colors.title': "Couleurs de l'interface",
   'colors.description':
@@ -84,6 +100,7 @@ export const fr: Messages = {
   'colors.hint.tech': 'Détails bleus',
 
   'interchange.title': 'Importer et exporter les mods',
+  'interchange.summary': "Transfère les mods depuis et vers d'autres gestionnaires",
   'interchange.description':
     "Transfère tes mods depuis et vers d'autres gestionnaires, comme le Deadlock Mod Manager officiel, ou sur un autre ordinateur. Le format ouvert Deadlock Mod Interchange est utilisé : un dossier avec le fichier mod-interchange.json et une copie des VPK.",
   'interchange.import': 'Importer',

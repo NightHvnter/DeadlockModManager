@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Download, FolderOpen, RefreshCw, Search, Settings, Upload } from 'lucide-react'
+import { useNavigate } from 'react-router'
+import { Download, FolderOpen, Palette, RefreshCw, Search, Settings, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import SettingsGroup from '@/components/SettingsGroup'
 import {
   Select,
   SelectContent,
@@ -23,7 +25,7 @@ import { useI18n } from '@/hooks/useI18n'
 import { useSettings } from '@/hooks/useSettings'
 import { useTheme, THEME_IDS, type Theme } from '@/hooks/useTheme'
 import { LANGUAGE_IDS, LANGUAGES, type Language } from '../../../mission/i18n'
-import type { Status } from '../../../mission/types'
+import { TEXT_SIZE_IDS, TEXT_SIZES, type Status, type TextSize } from '../../../mission/types'
 
 /** Valore della select per "usa la lingua del sistema" (le select non accettano `null`). */
 const SYSTEM_LANGUAGE = 'system'
@@ -37,6 +39,8 @@ export default function SettingsSheet(): React.JSX.Element {
   const [status, setStatus] = useState<Status | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [transferring, setTransferring] = useState(false)
+  const navigate = useNavigate()
+  const textSize = settings?.textSize ?? 'normal'
   const languageValue = settings?.language ?? SYSTEM_LANGUAGE
 
   // con il pannello aperto lo stato si aggiorna ogni secondo, per seguire la sincronizzazione
@@ -195,7 +199,76 @@ export default function SettingsSheet(): React.JSX.Element {
               </Select>
             </section>
 
-            <section className="grid gap-2">
+            <SettingsGroup
+              id="accessibility"
+              title={t('a11y.title')}
+              description={t('a11y.description')}
+            >
+              <div className="grid gap-2">
+                <Label>{t('a11y.textSize')}</Label>
+                <Select
+                  value={textSize}
+                  onValueChange={(v) => v && update({ textSize: v as TextSize })}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue>
+                      {t(`a11y.textSize.${textSize}`)} ({TEXT_SIZES[textSize]}%)
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TEXT_SIZE_IDS.map((id) => (
+                      <SelectItem key={id} value={id}>
+                        {t(`a11y.textSize.${id}`)} ({TEXT_SIZES[id]}%)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-1">
+                <Label className="flex items-center gap-2">
+                  <Checkbox
+                    checked={settings?.reduceMotion ?? false}
+                    onCheckedChange={(checked) => update({ reduceMotion: checked === true })}
+                  />
+                  {t('a11y.reduceMotion')}
+                </Label>
+                <p className="text-xs text-muted-foreground">{t('a11y.reduceMotionHint')}</p>
+              </div>
+
+              <div className="grid gap-1">
+                <Label className="flex items-center gap-2">
+                  <Checkbox
+                    checked={settings?.highContrast ?? false}
+                    onCheckedChange={(checked) => update({ highContrast: checked === true })}
+                  />
+                  {t('a11y.highContrast')}
+                </Label>
+                <p className="text-xs text-muted-foreground">{t('a11y.highContrastHint')}</p>
+              </div>
+
+              <div className="grid gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="justify-self-start"
+                  onClick={() => {
+                    setSheetOpen(false)
+                    navigate('/colors')
+                  }}
+                >
+                  <Palette className="size-4" />
+                  {t('a11y.gameColors')}
+                </Button>
+                <p className="text-xs text-muted-foreground">{t('a11y.gameColorsHint')}</p>
+              </div>
+            </SettingsGroup>
+
+            <SettingsGroup
+              id="content"
+              title={t('settings.content')}
+              description={t('settings.contentDescription')}
+            >
               <Label className="flex items-center gap-2">
                 <Checkbox
                   checked={settings?.includeNSFW ?? false}
@@ -203,10 +276,13 @@ export default function SettingsSheet(): React.JSX.Element {
                 />
                 {t('settings.nsfw')}
               </Label>
-            </section>
+            </SettingsGroup>
 
-            <section className="grid gap-2">
-              <Label>{t('settings.modList')}</Label>
+            <SettingsGroup
+              id="modList"
+              title={t('settings.modList')}
+              description={t('settings.modCount', { count: formatNumber(status?.total ?? 0) })}
+            >
               <p className="text-sm text-muted-foreground">
                 {t('settings.modCount', { count: formatNumber(status?.total ?? 0) })}
                 {status?.lastUpdated &&
@@ -227,10 +303,13 @@ export default function SettingsSheet(): React.JSX.Element {
                 <RefreshCw className={refreshing ? 'size-4 animate-spin' : 'size-4'} />
                 {t('settings.refreshNow')}
               </Button>
-            </section>
+            </SettingsGroup>
 
-            <section className="grid gap-2">
-              <Label>{t('interchange.title')}</Label>
+            <SettingsGroup
+              id="interchange"
+              title={t('interchange.title')}
+              description={t('interchange.summary')}
+            >
               <p className="text-xs text-muted-foreground">{t('interchange.description')}</p>
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -253,7 +332,7 @@ export default function SettingsSheet(): React.JSX.Element {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">{t('interchange.hint')}</p>
-            </section>
+            </SettingsGroup>
           </div>
         </SheetContent>
       </Sheet>

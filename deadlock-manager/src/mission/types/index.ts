@@ -8,7 +8,13 @@ export {
 } from './Pagination'
 export { type Status, type SyncProgress } from './Status'
 export type { IpcResult } from './Ipc'
-export { type Settings, DEFAULT_SETTINGS } from './Settings'
+export {
+  type Settings,
+  type TextSize,
+  DEFAULT_SETTINGS,
+  TEXT_SIZES,
+  TEXT_SIZE_IDS
+} from './Settings'
 export type { InstalledMod, InstalledModInfo, InstallProgress } from './Installed'
 export type { GameinfoStatus } from './Game'
 export {
