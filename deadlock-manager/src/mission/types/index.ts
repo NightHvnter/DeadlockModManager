@@ -19,3 +19,8 @@ export {
   type InterfaceColors,
   type InterfaceColorsResult
 } from './InterfaceColors'
+export type {
+  InterchangeExportResult,
+  InterchangeImportResult,
+  InterchangeSkipReason
+} from './Interchange'

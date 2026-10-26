@@ -234,6 +234,42 @@ function registerIpc(): void {
     })
   )
 
+  // importazione ed esportazione nel formato "Deadlock Mod Interchange" del manager ufficiale
+  ipcMain.handle('interchange:export', (event) =>
+    toResult(async () => {
+      const gamePath = await requireGamePath()
+      const window = BrowserWindow.fromWebContents(event.sender)
+      const options: Electron.OpenDialogOptions = {
+        title: translate(language, 'dialog.chooseExportFolder'),
+        properties: ['openDirectory', 'createDirectory']
+      }
+      const { canceled, filePaths } = window
+        ? await dialog.showOpenDialog(window, options)
+        : await dialog.showOpenDialog(options)
+      if (canceled || !filePaths[0]) return null
+      return ManageMods.exportMods(gamePath, filePaths[0], app.getVersion())
+    })
+  )
+  ipcMain.handle('interchange:import', (event) =>
+    toResult(async () => {
+      const gamePath = await requireGamePath()
+      const window = BrowserWindow.fromWebContents(event.sender)
+      const options: Electron.OpenDialogOptions = {
+        title: translate(language, 'dialog.chooseImportFile'),
+        properties: ['openFile'],
+        filters: [{ name: 'mod-interchange.json', extensions: ['json'] }]
+      }
+      const { canceled, filePaths } = window
+        ? await dialog.showOpenDialog(window, options)
+        : await dialog.showOpenDialog(options)
+      if (canceled || !filePaths[0]) return null
+      const ready = await catalogReady
+      const result = await ManageMods.importMods(gamePath, filePaths[0], (id) => ready.getById(id))
+      BrowserWindow.getAllWindows().forEach((w) => w.webContents.send('mods:updated'))
+      return result
+    })
+  )
+
   ipcMain.handle('colors:apply', (_, colors: InterfaceColors) =>
     toResult(async () => {
       const gamePath = await requireGamePath()

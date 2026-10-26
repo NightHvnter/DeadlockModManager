@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises'
+import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { HEROES } from '../types'
 import { VpkReader } from './vpk'
@@ -105,4 +105,70 @@ export async function readDmmManifest(addons: string): Promise<Map<string, strin
     // file assente o in un formato sconosciuto: nessuna associazione
   }
   return files
+}
+
+/**
+ * Prefisso con cui il Deadlock Mod Manager ufficiale lascia in `addons` i file delle mod
+ * disattivate (`<id>_<nome originale>.vpk`, che il gioco non carica): l'id numerico di
+ * GameBanana per le mod, `snd-<id>` per i suoni, `wip-<id>` per i WIP, `local-<uuid>` per le mod
+ * aggiunte a mano.
+ */
+const PARKED_PREFIX =
+  /^((?:snd-|wip-)?\d+|local-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})_(.+\.vpk)$/i
+
+/** Nome originale di un file parcheggiato dal manager ufficiale (`623518_pak05_dir.vpk` → `pak05_dir.vpk`). */
+export const unparkedName = (file: string): string => PARKED_PREFIX.exec(file)?.[2] ?? file
+
+/** File di una mod disattivata da un altro manager, rimasti in `dir`. */
+export interface ParkedGroup {
+  dir: string
+  files: string[]
+  /** Prefisso del Deadlock Mod Manager ufficiale (es. `623518` o `snd-1234`), se c'è. */
+  slug: string | null
+}
+
+/** Id numerico di GameBanana nel prefisso `slug`, se indica una mod o un suono pubblicati. */
+export const remoteIdOfSlug = (slug: string | null): string | null =>
+  /^(?:snd-)?(\d+)$/.exec(slug ?? '')?.[1] ?? null
+
+/** Gruppi `<base>_dir.vpk` + parti `<base>_000.vpk` e VPK a file unico tra `files`. */
+function vpkGroups(files: string[]): string[][] {
+  const groups = new Map<string, string[]>()
+  for (const f of files) {
+    if (!f.toLowerCase().endsWith('.vpk')) continue
+    const base = /^(.*)_(?:dir|\d{3})\.vpk$/i.exec(f)?.[1] ?? f
+    groups.set(base, [...(groups.get(base) ?? []), f])
+  }
+  // le parti numerate senza il loro `_dir.vpk` non si possono caricare
+  return [...groups.values()].filter(
+    (g) => g.some((f) => /_dir\.vpk$/i.test(f)) || !/_\d{3}\.vpk$/i.test(g[0])
+  )
+}
+
+/**
+ * Mod disattivate da altri manager: i file con il prefisso del Deadlock Mod Manager ufficiale in
+ * `addons` (un gruppo per mod) e i VPK nella cartella `addons/.disabled` di Grimoire (un gruppo
+ * per VPK, con il prefisso del manager ufficiale se Grimoire ci ha spostato i suoi file).
+ */
+export async function findParkedMods(addons: string): Promise<ParkedGroup[]> {
+  const parked: ParkedGroup[] = []
+  const bySlug = new Map<string, string[]>()
+  for (const f of await readdir(addons).catch((): string[] => [])) {
+    const slug = PARKED_PREFIX.exec(f)?.[1]
+    if (slug) bySlug.set(slug, [...(bySlug.get(slug) ?? []), f])
+  }
+  for (const [slug, files] of bySlug) {
+    const usable = vpkGroups(files).flat()
+    if (usable.length) parked.push({ dir: addons, files: usable.sort(), slug })
+  }
+
+  const grimoire = join(addons, '.disabled')
+  for (const files of vpkGroups(await readdir(grimoire).catch((): string[] => []))) {
+    parked.push({
+      dir: grimoire,
+      files: files.sort(),
+      slug: PARKED_PREFIX.exec(files[0])?.[1] ?? null
+    })
+  }
+  return parked
 }

@@ -1,6 +1,8 @@
 import {
   GameinfoStatus,
   InstalledMod,
+  InterchangeExportResult,
+  InterchangeImportResult,
   InterfaceColors,
   InterfaceColorsResult,
   Mod,
@@ -39,7 +41,28 @@ import {
   writeColorsState
 } from './interfaceColors'
 import { buildVpk } from './vpk'
-import { guessExternalInfo, readDmmManifest } from './external'
+import {
+  findParkedMods,
+  guessExternalInfo,
+  readDmmManifest,
+  remoteIdOfSlug,
+  unparkedName
+} from './external'
+import {
+  FORMAT_ID,
+  FORMAT_VERSION,
+  MANAGER_ID,
+  MANIFEST_FILENAME,
+  appIdOf,
+  isPlainVpkName,
+  originOf,
+  readBundle,
+  resolveBundlePath,
+  sha256File,
+  slugify,
+  type InterchangeDocument,
+  type InterchangeFile
+} from './interchange'
 const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 /** Chiamata con i byte ricevuti e quelli totali (`0` se sconosciuti) durante il download. */
@@ -175,6 +198,28 @@ export class ManageMods {
   }
 
   /**
+   * Copia in `addons` i VPK `files` di `dir` con nuovi indici `pakNN`: ogni `<base>_dir.vpk` con
+   * le sue parti (vedi `placeVpkGroup`) e ogni VPK a file unico come `pakNN_dir.vpk`. Le parti
+   * numerate senza il loro `_dir.vpk` vengono ignorate.
+   */
+  private static async placeVpkFiles(
+    dir: string,
+    files: string[],
+    addons: string,
+    placed: string[]
+  ): Promise<void> {
+    for (const f of files) {
+      if (/_dir\.vpk$/i.test(f)) {
+        await this.placeVpkGroup(dir, f.slice(0, -'_dir.vpk'.length), addons, placed)
+      } else if (!/_\d{3}\.vpk$/i.test(f)) {
+        const target = `pak${await this.nextFreeIndex(addons)}_dir.vpk`
+        await copyFile(join(dir, f), join(addons, target))
+        placed.push(target)
+      }
+    }
+  }
+
+  /**
    * File scaricabili di una mod, letti dalla sua `DownloadPage` su GameBanana (dal più
    * recente), esclusi quelli archiviati dall'autore.
    */
@@ -282,6 +327,14 @@ export class ManageMods {
         delete manifest[id]
         changed = true
       }
+      // mod disattivata da un altro manager i cui file sono spariti (riattivata o tolta da lui)
+      if (!entry.enabled && entry.parkedIn) {
+        const parked = await readdir(entry.parkedIn).catch((): string[] => [])
+        if (!entry.files.some((f) => parked.includes(f))) {
+          delete manifest[id]
+          changed = true
+        }
+      }
     }
 
     const known = new Set(
@@ -319,12 +372,59 @@ export class ManageMods {
       changed = true
     }
 
+    // mod disattivate da altri manager: restano dove sono finché non vengono riattivate qui
+    const parkedKnown = new Set(
+      Object.values(manifest).flatMap((e) =>
+        e.parkedIn ? e.files.map((f) => join(e.parkedIn!, f)) : []
+      )
+    )
+    for (const group of await findParkedMods(addons)) {
+      if (group.files.some((f) => parkedKnown.has(join(group.dir, f)))) continue
+      const remoteId = remoteIdOfSlug(group.slug)
+      const mod = remoteId ? lookup?.(remoteId) : undefined
+      const first = group.files.find((f) => /_dir\.vpk$/i.test(f)) ?? group.files[0]
+      const { mtime } = await stat(join(group.dir, first))
+      const common = {
+        files: group.files,
+        enabled: false,
+        installedAt: mtime.toISOString(),
+        fileName: first,
+        parkedIn: group.dir
+      }
+      if (mod && !manifest[mod.id]) {
+        manifest[mod.id] = {
+          ...common,
+          id: mod.id,
+          name: mod.name,
+          author: mod.author,
+          category: mod.category,
+          hero: mod.hero,
+          image: mod.thumbnailUrl ?? mod.images[0] ?? null
+        }
+      } else {
+        const base = `Local-${group.slug ?? first.replace(/(_dir)?\.vpk$/i, '')}`
+        let id = base
+        for (let n = 2; manifest[id]; n++) id = `${base}-${n}`
+        manifest[id] = {
+          ...common,
+          id,
+          name: first,
+          author: '',
+          category: '',
+          hero: null,
+          image: null,
+          external: true
+        }
+      }
+      changed = true
+    }
+
     // nome dal contenuto per le mod esterne ancora senza categoria (anche quelle trovate dalle
     // versioni precedenti dell'app, che usavano il nome del file)
     for (const entry of Object.values(manifest)) {
-      if (!entry.external || !entry.enabled || entry.category) continue
-      const dir = entry.files.find((f) => f.endsWith('_dir.vpk'))
-      const info = dir && (await guessExternalInfo(join(addons, dir)))
+      if (!entry.external || entry.category || (!entry.enabled && !entry.parkedIn)) continue
+      const dir = entry.files.find((f) => /_dir\.vpk$/i.test(f)) ?? entry.files[0]
+      const info = dir && (await guessExternalInfo(join(entry.parkedIn ?? addons, dir)))
       if (!info) continue
       Object.assign(entry, info)
       changed = true
@@ -333,8 +433,11 @@ export class ManageMods {
     if (lookup) {
       const dmm = await readDmmManifest(addons)
       for (const entry of Object.values(manifest)) {
-        if (!entry.external || !entry.enabled) continue
-        const remoteId = entry.files.map((f) => dmm.get(f)).find(Boolean)
+        if (!entry.external || (!entry.enabled && !entry.parkedIn)) continue
+        // le mod parcheggiate hanno l'id di GameBanana nel prefisso dei file (`Local-<prefisso>`)
+        const remoteId = entry.parkedIn
+          ? remoteIdOfSlug(entry.id.replace(/^Local-/, ''))
+          : entry.files.map((f) => dmm.get(f)).find(Boolean)
         const mod = remoteId && lookup(remoteId)
         if (mod && !manifest[mod.id] && (await this.relink(manifest, entry.id, mod))) changed = true
       }
@@ -370,7 +473,8 @@ export class ManageMods {
     mod: Mod
   ): Promise<boolean> {
     const entry = manifest[oldId]
-    if (!entry.enabled) {
+    // i file di una mod disattivata da un altro manager restano dove sono
+    if (!entry.enabled && !entry.parkedIn) {
       try {
         await mkdir(dirname(disabledDir(mod.id)), { recursive: true })
         await rename(disabledDir(oldId), disabledDir(mod.id))
@@ -489,6 +593,8 @@ export class ManageMods {
       if (entry.enabled) {
         const addons = join(gamePath, 'game', 'citadel', 'addons')
         await Promise.all(entry.files.map((f) => rm(join(addons, f), { force: true })))
+      } else if (entry.parkedIn) {
+        await Promise.all(entry.files.map((f) => rm(join(entry.parkedIn!, f), { force: true })))
       } else {
         await rm(disabledDir(modId), { recursive: true, force: true })
       }
@@ -519,21 +625,20 @@ export class ManageMods {
 
       if (enabled) {
         await mkdir(addons, { recursive: true })
-        // raggruppa i file per prefisso originale (pak01_dir.vpk, pak01_000.vpk, ...)
-        const bases = entry.files
-          .filter((f) => f.endsWith('_dir.vpk'))
-          .map((f) => f.slice(0, -'_dir.vpk'.length))
+        const source = entry.parkedIn ?? disabled
         const placed: string[] = []
         try {
-          for (const base of bases) {
-            await this.placeVpkGroup(disabled, base, addons, placed)
-          }
+          await this.placeVpkFiles(source, entry.files, addons, placed)
         } catch (e) {
           await Promise.all(placed.map((f) => rm(join(addons, f), { force: true })))
           throw e
         }
         await this.ensureAddonsSearchPath(citadel)
-        await rm(disabled, { recursive: true, force: true })
+        // della cartella di un altro manager si tolgono solo i file di questa mod
+        if (entry.parkedIn)
+          await Promise.all(entry.files.map((f) => rm(join(source, f), { force: true })))
+        else await rm(disabled, { recursive: true, force: true })
+        delete entry.parkedIn
         entry.files = placed
       } else {
         await mkdir(disabled, { recursive: true })
@@ -544,6 +649,201 @@ export class ManageMods {
       entry.enabled = enabled
       await writeManifest(manifest)
       return entry
+    })
+  }
+
+  /**
+   * Esporta tutte le mod installate in un pacchetto "Deadlock Mod Interchange" (vedi
+   * `./interchange`) dentro `destination`: la cartella `deadlock-mods-export-<data>` con
+   * `mod-interchange.json` e una copia dei VPK in `files/`. Le mod attive vengono prima, nel loro
+   * ordine di caricamento, poi quelle disattivate. Il pacchetto si importa nel Deadlock Mod
+   * Manager ufficiale o in un'altra copia di questa app.
+   */
+  public static exportMods(
+    gamePath: string,
+    destination: string,
+    managerVersion: string
+  ): Promise<InterchangeExportResult> {
+    return this.exclusive(async () => {
+      const addons = join(gamePath, 'game', 'citadel', 'addons')
+      const manifest = await readManifest()
+      const ordered = [
+        ...Object.values(manifest)
+          .filter((e) => e.enabled)
+          .sort((a, b) => lowestPakIndex(a.files) - lowestPakIndex(b.files)),
+        ...Object.values(manifest).filter((e) => !e.enabled)
+      ]
+
+      const stamp = new Date().toISOString().replace(/[-:]/g, '').replace('T', '-').slice(0, 15)
+      let folder = join(destination, `deadlock-mods-export-${stamp}`)
+      for (let n = 2; await stat(folder).catch(() => null); n++)
+        folder = join(destination, `deadlock-mods-export-${stamp}-${n}`)
+      await mkdir(join(folder, 'files'), { recursive: true })
+
+      const document: InterchangeDocument = {
+        format: FORMAT_ID,
+        version: FORMAT_VERSION,
+        createdAt: new Date().toISOString(),
+        source: { manager: MANAGER_ID, managerVersion },
+        contents: ['mods'],
+        mods: []
+      }
+      const skipped: string[] = []
+      try {
+        for (const entry of ordered) {
+          const source = entry.enabled ? addons : (entry.parkedIn ?? disabledDir(entry.id))
+          const present = await readdir(source).catch((): string[] => [])
+          const files = entry.files.filter((f) => present.includes(f))
+          if (files.length === 0) {
+            skipped.push(entry.name)
+            continue
+          }
+
+          const slug = slugify(entry.name, 40)
+          const dir = `${String(document.mods.length).padStart(4, '0')}-${slug}`
+          await mkdir(join(folder, 'files', dir))
+          const exported: InterchangeFile[] = []
+          for (const f of files) {
+            const name = unparkedName(f)
+            const path = `files/${dir}/${name}`
+            await copyFile(join(source, f), join(folder, path))
+            exported.push({
+              name,
+              path,
+              sha256: await sha256File(join(folder, path)),
+              size: (await stat(join(folder, path))).size,
+              selected: true
+            })
+          }
+
+          const { key, origin } = originOf(entry.id, entry.fileName)
+          const remote = /^(Mod|Sound)-(\d+)$/.exec(entry.id)
+          document.mods.push({
+            key,
+            name: entry.name,
+            enabled: entry.enabled,
+            order: document.mods.length,
+            origin,
+            author: entry.author || null,
+            category: entry.category || null,
+            hero: entry.hero,
+            thumbnailUrl: entry.image?.startsWith('http') ? entry.image : null,
+            link: remote
+              ? `https://gamebanana.com/${remote[1] === 'Sound' ? 'sounds' : 'mods'}/${remote[2]}`
+              : null,
+            files: exported,
+            extensions: { [MANAGER_ID]: { modId: entry.id } }
+          })
+        }
+        await writeFile(join(folder, MANIFEST_FILENAME), JSON.stringify(document, null, 2))
+      } catch (e) {
+        // non lascia un pacchetto a metà
+        await rm(folder, { recursive: true, force: true })
+        throw e
+      }
+      return { folder, exported: document.mods.length, skipped }
+    })
+  }
+
+  /**
+   * Importa le mod di un pacchetto "Deadlock Mod Interchange" (la cartella o il suo
+   * `mod-interchange.json`), per esempio esportato dal Deadlock Mod Manager ufficiale. Le mod
+   * attive vanno in `addons` in fondo all'ordine di caricamento, nell'ordine del pacchetto; quelle
+   * disattivate nella cartella delle mod disattivate dell'app. Le mod di GameBanana prendono i
+   * dati del catalogo, se `lookup` le trova; le altre diventano mod esterne. Le mod già
+   * installate vengono saltate, come quelle con file mancanti o diversi dallo SHA-256 dichiarato.
+   * @param lookup Mod del catalogo con quell'id dell'app (es. `Mod-123`), se c'è
+   */
+  public static importMods(
+    gamePath: string,
+    path: string,
+    lookup: (modId: string) => Mod | undefined
+  ): Promise<InterchangeImportResult> {
+    return this.exclusive(async () => {
+      const { document, base } = await readBundle(path)
+      const citadel = join(gamePath, 'game', 'citadel')
+      const addons = join(citadel, 'addons')
+      const manifest = await readManifest()
+      const result: InterchangeImportResult = {
+        source: document.source.manager,
+        imported: 0,
+        skipped: []
+      }
+
+      for (const item of [...document.mods].sort((a, b) => a.order - b.order)) {
+        const remoteId = appIdOf(item.origin)
+        const own = item.extensions?.[MANAGER_ID] as { modId?: unknown } | undefined
+        const ownId = typeof own?.modId === 'string' ? own.modId : null
+        if ((remoteId && manifest[remoteId]) || (!remoteId && ownId && manifest[ownId])) {
+          result.skipped.push({ name: item.name, reason: 'alreadyInstalled' })
+          continue
+        }
+
+        // file scelti, dentro il pacchetto e presenti; senza nessuno scelto vale il primo
+        let chosen = item.files.filter((f) => f.selected !== false)
+        if (chosen.length === 0) chosen = item.files.slice(0, 1)
+        const files: { source: string; name: string; sha256?: string }[] = []
+        for (const f of chosen) {
+          const source = resolveBundlePath(base, f.path)
+          if (!source || !(await stat(source).catch(() => null))?.isFile()) continue
+          const name = isPlainVpkName(f.name) ? f.name : basename(source)
+          if (name.toLowerCase().endsWith('.vpk')) files.push({ source, name, sha256: f.sha256 })
+        }
+        if (files.length === 0) {
+          result.skipped.push({ name: item.name, reason: 'missingFiles' })
+          continue
+        }
+        let intact = true
+        for (const f of files)
+          if (f.sha256 && (await sha256File(f.source)) !== f.sha256.toLowerCase()) intact = false
+        if (!intact) {
+          result.skipped.push({ name: item.name, reason: 'checksum' })
+          continue
+        }
+
+        let id = remoteId ?? ownId ?? `Local-${slugify(item.name, 40)}`
+        for (let n = 2; manifest[id]; n++)
+          id = `${remoteId ?? `Local-${slugify(item.name, 40)}`}-${n}`
+
+        // i file vanno in una cartella temporanea con i loro nomi, da cui si copiano come
+        // farebbe una mod disattivata riattivata
+        const placed: string[] = []
+        const disabled = disabledDir(id)
+        try {
+          await mkdir(disabled, { recursive: true })
+          for (const f of files) await copyFile(f.source, join(disabled, f.name))
+          const names = files.map((f) => f.name)
+          if (item.enabled) {
+            await mkdir(addons, { recursive: true })
+            await this.placeVpkFiles(disabled, names, addons, placed)
+            await rm(disabled, { recursive: true, force: true })
+          }
+          const mod = remoteId ? lookup(remoteId) : undefined
+          manifest[id] = {
+            id,
+            files: item.enabled ? placed : names,
+            enabled: item.enabled,
+            installedAt: new Date().toISOString(),
+            fileName:
+              item.origin.provider === 'gamebanana' ? (item.origin.fileName ?? names[0]) : names[0],
+            name: mod?.name ?? item.name,
+            author: mod?.author ?? item.author ?? '',
+            category: mod?.category ?? item.category ?? '',
+            hero: mod?.hero ?? item.hero ?? null,
+            image: mod?.thumbnailUrl ?? mod?.images[0] ?? item.thumbnailUrl ?? null,
+            ...(remoteId ? {} : { external: true })
+          }
+          result.imported++
+        } catch {
+          await Promise.all(placed.map((f) => rm(join(addons, f), { force: true })))
+          await rm(disabled, { recursive: true, force: true })
+          result.skipped.push({ name: item.name, reason: 'failed' })
+        }
+      }
+
+      await writeManifest(manifest)
+      if (Object.values(manifest).some((e) => e.enabled)) await this.ensureAddonsSearchPath(citadel)
+      return result
     })
   }
 

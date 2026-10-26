@@ -5,6 +5,8 @@ import type {
   InstalledMod,
   InstalledModInfo,
   InstallProgress,
+  InterchangeExportResult,
+  InterchangeImportResult,
   InterfaceColors,
   InterfaceColorsResult,
   IpcResult,
@@ -69,6 +71,13 @@ const api = {
   /** Salva i colori dell'interfaccia e rigenera il loro VPK in `addons` (lo toglie se sono tutti originali). */
   applyInterfaceColors: (colors: InterfaceColors): Promise<IpcResult<InterfaceColorsResult>> =>
     ipcRenderer.invoke('colors:apply', colors),
+
+  /** Esporta le mod in un pacchetto per altri manager; `data` è `null` se l'utente annulla. */
+  exportMods: (): Promise<IpcResult<InterchangeExportResult | null>> =>
+    ipcRenderer.invoke('interchange:export'),
+  /** Importa un pacchetto di un altro manager; `data` è `null` se l'utente annulla. */
+  importMods: (): Promise<IpcResult<InterchangeImportResult | null>> =>
+    ipcRenderer.invoke('interchange:import'),
 
   /** Controlla `gameinfo.gi` (e lo ripara se la riparazione automatica è attiva). */
   checkGameinfo: (): Promise<IpcResult<GameinfoStatus>> => ipcRenderer.invoke('game:checkGameinfo'),
