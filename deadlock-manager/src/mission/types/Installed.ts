@@ -44,3 +44,16 @@ export interface InstallProgress {
   /** Byte totali, `0` se sconosciuti. */
   total: number
 }
+
+/**
+ * Due mod attive che contengono gli stessi file: il gioco usa quelli di `winner`, la mod con
+ * l'indice `pakNN` più basso, quindi quei file di `loser` non si vedono.
+ */
+export interface ModConflict {
+  winner: string
+  loser: string
+  /** Numero di file in comune. */
+  files: number
+  /** Alcuni dei file in comune, per mostrarli all'utente. */
+  sample: string[]
+}

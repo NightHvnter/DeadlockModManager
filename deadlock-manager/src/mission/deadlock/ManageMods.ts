@@ -6,6 +6,7 @@ import {
   InterfaceColors,
   InterfaceColorsResult,
   Mod,
+  ModConflict,
   ModChangelogEntry,
   ModDownload
 } from '../types'
@@ -40,7 +41,7 @@ import {
   readColorsState,
   writeColorsState
 } from './interfaceColors'
-import { buildVpk } from './vpk'
+import { buildVpk, VpkReader } from './vpk'
 import {
   findParkedMods,
   guessExternalInfo,
@@ -88,9 +89,14 @@ export class ManageMods {
     download?: ModDownload,
     onProgress?: ProgressCallback
   ): Promise<string[]> {
-    return this.exclusive(() => this.doInstall(mod, gamePath, download, onProgress))
+    return this.doInstall(mod, gamePath, download, onProgress)
   }
 
+  /**
+   * Scarica ed estrae la mod fuori dalla coda delle operazioni, così un download lungo non blocca
+   * l'elenco delle mod installate, l'ordine di caricamento o "Gioca"; entra nella coda solo per
+   * copiare i VPK in `addons` e aggiornare il manifest, dove serve scegliere i `pakNN` liberi.
+   */
   private static async doInstall(
     mod: Mod,
     gamePath: string,
@@ -124,7 +130,7 @@ export class ManageMods {
       else if (ext === '.vpk') await copyFile(archive, join(extracted, basename(archive)))
       else throw new AppError('error.unsupportedFormat', { ext })
 
-      // 3. Copia dei VPK in addons con il prefisso pakNN. Due formati:
+      // 3. Copia dei VPK in addons con il prefisso pakNN (nella coda delle operazioni). Due formati:
       //    - VPK diviso: `<nome>_dir.vpk` più le parti `<nome>_000.vpk`, `<nome>_001.vpk`, ...
       //    - VPK a file unico: `<nome>.vpk`, che il gioco carica rinominato `pakNN_dir.vpk`
       const all = (await readdir(extracted, { recursive: true })).filter((f) =>
@@ -136,37 +142,40 @@ export class ManageMods {
       )
       if (split.length + single.length === 0) throw new AppError('error.noVpk')
 
-      await mkdir(addons, { recursive: true })
-      for (const rel of split) {
-        const dir = join(extracted, dirname(rel))
-        const base = basename(rel).slice(0, -'_dir.vpk'.length)
-        await this.placeVpkGroup(dir, base, addons, installed)
-      }
-      for (const rel of single) {
-        const target = `pak${await this.nextFreeIndex(addons)}_dir.vpk`
-        await copyFile(join(extracted, rel), join(addons, target))
-        installed.push(target)
-      }
+      return await this.exclusive(async () => {
+        // durante il download potrebbe essere stata installata da un'altra richiesta
+        if ((await readManifest())[mod.id]) throw new AppError('error.alreadyInstalled')
+        await mkdir(addons, { recursive: true })
+        for (const rel of split) {
+          const dir = join(extracted, dirname(rel))
+          const base = basename(rel).slice(0, -'_dir.vpk'.length)
+          await this.placeVpkGroup(dir, base, addons, installed)
+        }
+        for (const rel of single) {
+          const target = `pak${await this.nextFreeIndex(addons)}_dir.vpk`
+          await copyFile(join(extracted, rel), join(addons, target))
+          installed.push(target)
+        }
 
-      // 4. Abilita la cartella addons nel gioco
-      await this.ensureAddonsSearchPath(citadel)
+        // 4. Abilita la cartella addons nel gioco
+        await this.ensureAddonsSearchPath(citadel)
 
-      const manifest = await readManifest()
-      manifest[mod.id] = {
-        id: mod.id,
-        files: installed,
-        enabled: true,
-        installedAt: new Date().toISOString(),
-        fileName: file.name,
-        name: mod.name,
-        author: mod.author,
-        category: mod.category,
-        hero: mod.hero,
-        image: mod.thumbnailUrl ?? mod.images[0] ?? null
-      }
-      await writeManifest(manifest)
-
-      return installed
+        const manifest = await readManifest()
+        manifest[mod.id] = {
+          id: mod.id,
+          files: installed,
+          enabled: true,
+          installedAt: new Date().toISOString(),
+          fileName: file.name,
+          name: mod.name,
+          author: mod.author,
+          category: mod.category,
+          hero: mod.hero,
+          image: mod.thumbnailUrl ?? mod.images[0] ?? null
+        }
+        await writeManifest(manifest)
+        return installed
+      })
     } catch (e) {
       // non lascia in addons i file di un'installazione a metà
       await Promise.all(installed.map((f) => rm(join(addons, f), { force: true })))
@@ -845,6 +854,39 @@ export class ManageMods {
       if (Object.values(manifest).some((e) => e.enabled)) await this.ensureAddonsSearchPath(citadel)
       return result
     })
+  }
+
+  /**
+   * Coppie di mod attive che contengono gli stessi file. Le mod si leggono nell'ordine di
+   * caricamento: il primo file con un certo percorso è quello che il gioco usa, quindi a vincere è
+   * sempre la mod con l'indice `pakNN` più basso. Con tre mod sullo stesso file, le due perdenti
+   * vengono confrontate solo con quella che vince. I VPK illeggibili vengono saltati.
+   */
+  public static async getConflicts(gamePath: string): Promise<ModConflict[]> {
+    const addons = join(gamePath, 'game', 'citadel', 'addons')
+    const owners = new Map<string, string>()
+    const pairs = new Map<string, ModConflict>()
+    for (const entry of await this.getLoadOrder()) {
+      const paths = new Set<string>()
+      for (const f of entry.files.filter((f) => /_dir\.vpk$/i.test(f))) {
+        const vpk = await VpkReader.open(join(addons, f)).catch(() => null)
+        vpk?.paths().forEach((p) => paths.add(p))
+      }
+      for (const path of paths) {
+        const winner = owners.get(path)
+        if (!winner) {
+          owners.set(path, entry.id)
+          continue
+        }
+        if (winner === entry.id) continue
+        const key = `${winner}\n${entry.id}`
+        const pair = pairs.get(key) ?? { winner, loser: entry.id, files: 0, sample: [] }
+        pair.files++
+        if (pair.sample.length < 5) pair.sample.push(path)
+        pairs.set(key, pair)
+      }
+    }
+    return [...pairs.values()]
   }
 
   /**

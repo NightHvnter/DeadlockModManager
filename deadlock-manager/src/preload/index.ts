@@ -11,6 +11,7 @@ import type {
   InterfaceColorsResult,
   IpcResult,
   ModChangelogEntry,
+  ModConflict,
   ModDownload,
   ModFilters,
   ModSearchResult,
@@ -50,6 +51,8 @@ const api = {
   getInstalledModsInfo: (): Promise<InstalledModInfo[]> => ipcRenderer.invoke('mods:installedInfo'),
   /** Mod attive dalla priorità più alta (`pak01`) alla più bassa. */
   getLoadOrder: (): Promise<InstalledMod[]> => ipcRenderer.invoke('mods:loadOrder'),
+  /** Mod attive che contengono gli stessi file, con quella che vince. */
+  getConflicts: (): Promise<IpcResult<ModConflict[]>> => ipcRenderer.invoke('mods:conflicts'),
   setLoadOrder: (modIds: string[]): Promise<IpcResult<InstalledMod[]>> =>
     ipcRenderer.invoke('mods:setLoadOrder', modIds),
   getCategories: (): Promise<string[]> => ipcRenderer.invoke('mods:categories'),

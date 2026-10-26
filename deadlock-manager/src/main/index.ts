@@ -191,6 +191,9 @@ function registerIpc(): void {
     await syncExternalMods()
     return ManageMods.getLoadOrder()
   })
+  ipcMain.handle('mods:conflicts', () =>
+    toResult(async () => ManageMods.getConflicts(await requireGamePath()))
+  )
   ipcMain.handle('mods:setLoadOrder', (_, modIds: string[]) =>
     toResult(async () => ManageMods.setLoadOrder(modIds, await requireGamePath()))
   )
