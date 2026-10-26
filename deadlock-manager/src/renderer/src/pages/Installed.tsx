@@ -7,6 +7,13 @@ import { Button, buttonVariants } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
 import Spinner from '@/components/Spinner'
 import LoadOrderDialog from '@/components/LoadOrderDialog'
 import LinkModDialog from '@/components/LinkModDialog'
@@ -14,11 +21,16 @@ import { useI18n } from '@/hooks/useI18n'
 import { useModActions } from '@/hooks/useModActions'
 import type { InstalledModInfo } from '../../../mission/types'
 
+/** Stati per cui si possono filtrare le mod; il nome di ognuno è alla chiave `installed.show.<id>`. */
+const STATE_FILTERS = ['all', 'enabled', 'disabled'] as const
+type StateFilter = (typeof STATE_FILTERS)[number]
+
 /** Pagina con le mod installate: attivazione, aggiornamento e disinstallazione. */
 export default function Installed(): React.JSX.Element {
   const { version, isBusy, progress, uninstall, update, setEnabled } = useModActions()
   const [mods, setMods] = useState<InstalledModInfo[] | null>(null)
   const [search, setSearch] = useState('')
+  const [stateFilter, setStateFilter] = useState<StateFilter>('all')
   const { t, formatDate } = useI18n()
   const [loadOrderOpen, setLoadOrderOpen] = useState(false)
   const [linking, setLinking] = useState<InstalledModInfo | null>(null)
@@ -48,8 +60,15 @@ export default function Installed(): React.JSX.Element {
   }
 
   const q = search.trim().toLowerCase()
+  const counts: Record<StateFilter, number> = {
+    all: mods.length,
+    enabled: mods.filter((m) => m.enabled).length,
+    disabled: mods.filter((m) => !m.enabled).length
+  }
   const visible = mods.filter(
-    (m) => !q || m.name.toLowerCase().includes(q) || m.author.toLowerCase().includes(q)
+    (m) =>
+      (stateFilter === 'all' || m.enabled === (stateFilter === 'enabled')) &&
+      (!q || m.name.toLowerCase().includes(q) || m.author.toLowerCase().includes(q))
   )
   const updates = mods.filter((m) => m.updateAvailable).length
 
@@ -62,6 +81,20 @@ export default function Installed(): React.JSX.Element {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+        <Select value={stateFilter} onValueChange={(v) => v && setStateFilter(v as StateFilter)}>
+          <SelectTrigger className="w-44" aria-label={t('installed.show')}>
+            <SelectValue>
+              {t(`installed.show.${stateFilter}`)} ({counts[stateFilter]})
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {STATE_FILTERS.map((id) => (
+              <SelectItem key={id} value={id}>
+                {t(`installed.show.${id}`)} ({counts[id]})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <span className="text-sm text-muted-foreground">
           {t('installed.count', { count: mods.length })}
           {updates > 0 && t('installed.toUpdate', { count: updates })}
@@ -93,6 +126,8 @@ export default function Installed(): React.JSX.Element {
             {t('installed.browse')}
           </Link>
         </div>
+      ) : visible.length === 0 ? (
+        <p className="py-20 text-center text-muted-foreground">{t('installed.noMatch')}</p>
       ) : (
         <div className="grid gap-2">
           {visible.map((mod) => {
@@ -105,7 +140,11 @@ export default function Installed(): React.JSX.Element {
                     src={mod.image}
                     alt=""
                     loading="lazy"
-                    className={mod.enabled ? "aspect-video w-28 shrink-0 rounded-md object-cover" : "aspect-video w-28 shrink-0 rounded-md object-cover grayscale-100"}
+                    className={
+                      mod.enabled
+                        ? 'aspect-video w-28 shrink-0 rounded-md object-cover'
+                        : 'aspect-video w-28 shrink-0 rounded-md object-cover grayscale-100'
+                    }
                   />
                 ) : (
                   <div className="aspect-video w-28 shrink-0 rounded-md bg-muted" />

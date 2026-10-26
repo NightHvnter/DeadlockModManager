@@ -149,6 +149,11 @@ export const it = {
   'details.version': 'versione {version}',
 
   'installed.search': 'Cerca tra le installate...',
+  'installed.show': 'Mostra',
+  'installed.show.all': 'Tutte',
+  'installed.show.enabled': 'Abilitate',
+  'installed.show.disabled': 'Disabilitate',
+  'installed.noMatch': 'Nessuna mod corrisponde ai filtri.',
   'installed.count': '{count} installate',
   'installed.toUpdate': ', {count} da aggiornare',
   'installed.openAddons': 'Apri cartella addons',
