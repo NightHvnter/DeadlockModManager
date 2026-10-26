@@ -15,7 +15,8 @@ import type {
   ModFilters,
   ModSearchResult,
   Settings,
-  Status
+  Status,
+  UpdateStatus
 } from '../mission/types'
 
 const api = {
@@ -78,6 +79,20 @@ const api = {
   /** Importa un pacchetto di un altro manager; `data` è `null` se l'utente annulla. */
   importMods: (): Promise<IpcResult<InterchangeImportResult | null>> =>
     ipcRenderer.invoke('interchange:import'),
+
+  /** Versione dell'app, come in `package.json`. */
+  getAppVersion: (): Promise<string> => ipcRenderer.invoke('app:version'),
+  getUpdateStatus: (): Promise<UpdateStatus> => ipcRenderer.invoke('updates:status'),
+  /** Controlla subito se c'è una versione nuova dell'app (e la scarica dove si può). */
+  checkForUpdates: (): Promise<UpdateStatus> => ipcRenderer.invoke('updates:check'),
+  /** Chiude l'app e installa la versione scaricata. */
+  installUpdate: (): Promise<void> => ipcRenderer.invoke('updates:install'),
+  /** Registra `listener` per i cambi di stato degli aggiornamenti; restituisce la funzione per rimuoverlo. */
+  onUpdateStatus: (listener: (status: UpdateStatus) => void): (() => void) => {
+    const handler = (_: IpcRendererEvent, status: UpdateStatus): void => listener(status)
+    ipcRenderer.on('updates:status', handler)
+    return () => ipcRenderer.removeListener('updates:status', handler)
+  },
 
   /** Controlla `gameinfo.gi` (e lo ripara se la riparazione automatica è attiva). */
   checkGameinfo: (): Promise<IpcResult<GameinfoStatus>> => ipcRenderer.invoke('game:checkGameinfo'),

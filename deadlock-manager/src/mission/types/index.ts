@@ -17,6 +17,7 @@ export {
 } from './Settings'
 export type { InstalledMod, InstalledModInfo, InstallProgress } from './Installed'
 export type { GameinfoStatus } from './Game'
+export { type UpdateStatus, RELEASES_URL } from './Update'
 export {
   COLOR_SLOTS,
   COLOR_SLOT_IDS,

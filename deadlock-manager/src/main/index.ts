@@ -2,6 +2,7 @@ import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import { checkForUpdates, getUpdateStatus, initUpdater, installUpdate } from './updater'
 import { GameBananaCatalog, INCREMENTAL_INTERVAL_MS } from '../mission/gamebanana'
 import {
   ManageMods,
@@ -279,6 +280,11 @@ function registerIpc(): void {
     })
   )
 
+  ipcMain.handle('app:version', () => app.getVersion())
+  ipcMain.handle('updates:status', () => getUpdateStatus())
+  ipcMain.handle('updates:check', () => checkForUpdates())
+  ipcMain.handle('updates:install', () => installUpdate())
+
   // gameinfo.gi viene controllato solo all'avvio dell'app (dal renderer), con "Gioca" e con
   // "Ripara": mai in background mentre l'app è aperta
   ipcMain.handle('game:checkGameinfo', () => toResult(() => checkGameinfo()))
@@ -363,6 +369,8 @@ app.whenReady().then(async () => {
 
   registerIpc()
   createWindow()
+  // gli aggiornamenti dell'app si controllano all'avvio, se l'utente non li ha spenti
+  initUpdater((await readSettings()).autoUpdate)
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
