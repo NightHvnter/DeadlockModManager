@@ -29,7 +29,7 @@ import { basename, dirname, extname, join } from 'node:path'
 import { Readable, Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import type { ReadableStream as WebStream } from 'node:stream/web'
-import { disabledDir, readManifest, writeManifest } from './manifest'
+import { disabledDir, manifestSavedAt, readManifest, writeManifest } from './manifest'
 import { isPatched, patch } from './gameinfo'
 import { extractZip as extract } from '../func/extractZip'
 import { extractRar } from '../func/extractRar'
@@ -306,7 +306,8 @@ export class ManageMods {
    * che l'app non conosce, così si possono vedere, disattivare, riordinare e disinstallare come
    * le altre. Il nome viene ricavato dal contenuto del VPK; se il Deadlock Mod Manager ufficiale
    * ha lasciato in `addons/.dmm.json` la mod di GameBanana da cui arriva il file e `lookup` la
-   * trova nel catalogo, la mod esterna viene collegata a quella (vedi `linkMod`). Toglie le mod
+   * trova nel catalogo, la mod esterna viene collegata a quella (vedi `linkMod`); `.dmm.json`
+   * viene ignorato se è più vecchio dell'ultimo salvataggio di questa app. Toglie le mod
    * esterne attive i cui file non ci sono più. Il VPK dei colori e le parti numerate senza
    * `_dir.vpk` vengono ignorati.
    * @param lookup Mod del catalogo con quell'id numerico di GameBanana, se c'è
@@ -317,21 +318,49 @@ export class ManageMods {
 
   private static async doSyncExternal(gamePath: string, lookup?: ExternalLookup): Promise<void> {
     const addons = join(gamePath, 'game', 'citadel', 'addons')
-    const present = await readdir(addons).catch((): string[] => [])
+    // se addons non si legge (disco scollegato, permessi) non si toglie nessuna mod
+    const present = await readdir(addons).catch((): string[] | null => null)
+    if (!present) return
     const manifest = await readManifest()
     const colorsFile = (await readColorsState()).file
     let changed = false
+    // `.dmm.json` vale solo se il manager ufficiale l'ha scritto dopo l'ultimo salvataggio di
+    // questa app: altrimenti può descrivere file che nel frattempo l'app ha rinominato (per
+    // esempio cambiando l'ordine di caricamento) e collegare la mod sbagliata
+    const dmmIsFresh =
+      Object.keys(manifest).length === 0 ||
+      (await stat(join(addons, '.dmm.json')).then(
+        (s) => s.mtimeMs,
+        () => -1
+      )) >= (await manifestSavedAt())
 
     for (const [id, entry] of Object.entries(manifest)) {
       if (entry.external && entry.enabled && !entry.files.some((f) => present.includes(f))) {
         delete manifest[id]
         changed = true
       }
-      // mod disattivata da un altro manager i cui file sono spariti (riattivata o tolta da lui)
+      // mod disattivata da un altro manager i cui file sono spariti (riattivata o tolta da lui).
+      // `parkedIn` è un percorso assoluto: se la cartella del gioco è cambiata (libreria di
+      // Steam spostata, percorso scritto diversamente) i file si cercano nelle cartelle attuali
       if (!entry.enabled && entry.parkedIn) {
-        const parked = await readdir(entry.parkedIn).catch((): string[] => [])
-        if (!entry.files.some((f) => parked.includes(f))) {
+        const grimoire = join(addons, '.disabled')
+        const candidates = [
+          entry.parkedIn,
+          ...(basename(entry.parkedIn) === '.disabled' ? [grimoire, addons] : [addons, grimoire])
+        ]
+        let found: string | undefined
+        for (const dir of candidates) {
+          const parked = await readdir(dir).catch((): string[] => [])
+          if (entry.files.some((f) => parked.includes(f))) {
+            found = dir
+            break
+          }
+        }
+        if (!found) {
           delete manifest[id]
+          changed = true
+        } else if (found !== entry.parkedIn) {
+          entry.parkedIn = found
           changed = true
         }
       }
@@ -431,7 +460,7 @@ export class ManageMods {
     }
 
     if (lookup) {
-      const dmm = await readDmmManifest(addons)
+      const dmm = dmmIsFresh ? await readDmmManifest(addons) : new Map<string, string>()
       for (const entry of Object.values(manifest)) {
         if (!entry.external || (!entry.enabled && !entry.parkedIn)) continue
         // le mod parcheggiate hanno l'id di GameBanana nel prefisso dei file (`Local-<prefisso>`)
@@ -447,14 +476,16 @@ export class ManageMods {
   }
 
   /**
-   * Collega la mod esterna `localId` alla mod di GameBanana `mod`: da quel momento ha il nome,
-   * l'autore e l'immagine di GameBanana e il controllo degli aggiornamenti, come se fosse stata
-   * installata dall'app. I file restano quelli già presenti.
+   * Collega la mod `localId` alla mod di GameBanana `mod`: da quel momento ha il nome, l'autore e
+   * l'immagine di GameBanana e il controllo degli aggiornamenti, come se fosse stata installata
+   * dall'app. I file restano quelli già presenti. Vale per le mod esterne e per correggere una
+   * mod collegata a quella sbagliata o non più nel catalogo.
    */
   public static linkMod(localId: string, mod: Mod): Promise<InstalledMod> {
     return this.exclusive(async () => {
       const manifest = await readManifest()
-      if (!manifest[localId]?.external) throw new AppError('error.notInstalled')
+      if (!manifest[localId]) throw new AppError('error.notInstalled')
+      if (localId === mod.id) return manifest[localId]
       if (manifest[mod.id]) throw new AppError('error.alreadyInstalled')
       if (!(await this.relink(manifest, localId, mod))) throw new AppError('error.linkFailed')
       await writeManifest(manifest)

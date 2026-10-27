@@ -54,11 +54,13 @@ export const es: Messages = {
   'a11y.textSize.large': 'Grande',
   'a11y.textSize.xlarge': 'Muy grande',
   'a11y.reduceMotion': 'Reducir animaciones',
-  'a11y.reduceMotionHint': 'Quita animaciones y transiciones. También se quitan cuando el sistema pide reducir el movimiento.',
+  'a11y.reduceMotionHint':
+    'Quita animaciones y transiciones. También se quitan cuando el sistema pide reducir el movimiento.',
   'a11y.highContrast': 'Contraste alto',
   'a11y.highContrastHint': 'Textos secundarios, bordes y contorno de selección más marcados.',
   'a11y.gameColors': 'Colores del juego para daltónicos',
-  'a11y.gameColorsHint': 'En la página Colores, el preset Daltonismo cambia los colores de enemigos, aliados y barras de vida en Deadlock.',
+  'a11y.gameColorsHint':
+    'En la página Colores, el preset Daltonismo cambia los colores de enemigos, aliados y barras de vida en Deadlock.',
 
   'colors.title': 'Colores de la interfaz',
   'colors.description':
@@ -186,6 +188,7 @@ export const es: Messages = {
   'installed.externalTooltip': 'Encontrada en la carpeta addons, no instalada por esta app',
   'link.button': 'Vincular',
   'link.tooltip': 'Vincula este mod a su página de GameBanana',
+  'link.change': 'Cambiar el mod de GameBanana vinculado',
   'link.title': 'Vincular con GameBanana',
   'link.description':
     'Elige el mod de GameBanana del que proviene {name}: tomará su nombre, autor e imagen y podrás actualizarlo.',

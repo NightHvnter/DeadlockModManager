@@ -53,11 +53,14 @@ export const it = {
   'a11y.textSize.large': 'Grande',
   'a11y.textSize.xlarge': 'Molto grande',
   'a11y.reduceMotion': 'Riduci le animazioni',
-  'a11y.reduceMotionHint': 'Toglie animazioni e transizioni. Vengono tolte anche quando il sistema chiede di ridurre il movimento.',
+  'a11y.reduceMotionHint':
+    'Toglie animazioni e transizioni. Vengono tolte anche quando il sistema chiede di ridurre il movimento.',
   'a11y.highContrast': 'Contrasto elevato',
-  'a11y.highContrastHint': 'Testi secondari, bordi e contorno degli elementi selezionati più marcati.',
+  'a11y.highContrastHint':
+    'Testi secondari, bordi e contorno degli elementi selezionati più marcati.',
   'a11y.gameColors': 'Colori del gioco per daltonici',
-  'a11y.gameColorsHint': 'Nella pagina Colori il preset Daltonici cambia i colori di nemici, alleati e barre della vita in Deadlock.',
+  'a11y.gameColorsHint':
+    'Nella pagina Colori il preset Daltonici cambia i colori di nemici, alleati e barre della vita in Deadlock.',
 
   'colors.title': 'Colori interfaccia',
   'colors.description':
@@ -184,6 +187,7 @@ export const it = {
   'installed.externalTooltip': 'Trovata nella cartella addons, non installata da questa app',
   'link.button': 'Collega',
   'link.tooltip': 'Collega questa mod alla sua pagina su GameBanana',
+  'link.change': 'Cambia la mod di GameBanana collegata',
   'link.title': 'Collega a GameBanana',
   'link.description':
     'Scegli la mod di GameBanana da cui arriva {name}: ne prenderà nome, autore e immagine e potrai aggiornarla.',

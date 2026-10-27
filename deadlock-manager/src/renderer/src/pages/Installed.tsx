@@ -184,7 +184,7 @@ export default function Installed(): React.JSX.Element {
                   {t('installed.enabled')}
                 </label>
 
-                {mod.external && (
+                {mod.external || !mod.available ? (
                   <Button
                     size="sm"
                     variant="outline"
@@ -194,6 +194,18 @@ export default function Installed(): React.JSX.Element {
                   >
                     <Link2 className="size-4" />
                     {t('link.button')}
+                  </Button>
+                ) : (
+                  // anche una mod già collegata può esserlo a quella sbagliata
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    title={t('link.change')}
+                    aria-label={t('link.change')}
+                    disabled={busy}
+                    onClick={() => setLinking(mod)}
+                  >
+                    <Link2 />
                   </Button>
                 )}
                 {mod.updateAvailable && (
