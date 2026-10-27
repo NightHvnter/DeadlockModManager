@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { toast } from 'sonner'
-import { FolderOpen, Link2, ListOrdered } from 'lucide-react'
+import { FileUp, FolderOpen, Link2, ListOrdered, TriangleAlert } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -17,12 +17,14 @@ import {
 import Spinner from '@/components/Spinner'
 import LoadOrderDialog from '@/components/LoadOrderDialog'
 import LinkModDialog from '@/components/LinkModDialog'
+import ConflictsDialog from '@/components/ConflictsDialog'
 import { useI18n } from '@/hooks/useI18n'
 import { useModActions } from '@/hooks/useModActions'
-import type { InstalledModInfo } from '../../../mission/types'
+import { useLocalInstall } from '@/hooks/useLocalInstall'
+import type { InstalledModInfo, ModConflict } from '../../../mission/types'
 
 /** Stati per cui si possono filtrare le mod; il nome di ognuno è alla chiave `installed.show.<id>`. */
-const STATE_FILTERS = ['all', 'enabled', 'disabled'] as const
+const STATE_FILTERS = ['all', 'enabled', 'disabled', 'conflicts'] as const
 type StateFilter = (typeof STATE_FILTERS)[number]
 
 /** Pagina con le mod installate: attivazione, aggiornamento e disinstallazione. */
@@ -34,17 +36,35 @@ export default function Installed(): React.JSX.Element {
   const { t, formatDate } = useI18n()
   const [loadOrderOpen, setLoadOrderOpen] = useState(false)
   const [linking, setLinking] = useState<InstalledModInfo | null>(null)
+  const [conflicts, setConflicts] = useState<ModConflict[]>([])
+  const [conflictsOpen, setConflictsOpen] = useState(false)
+  const localInstall = useLocalInstall()
+
+  /** Rilegge i conflitti tra le mod attive; un errore lascia semplicemente l'elenco vuoto. */
+  const loadConflicts = (): void =>
+    void window.api.getConflicts().then((r) => setConflicts(r.ok ? r.data : []))
 
   // ricarica l'elenco a ogni installazione, disinstallazione o cambio di stato
   useEffect(() => {
     window.api.getInstalledModsInfo().then(setMods)
+    loadConflicts()
   }, [version])
 
   // e quando arriva una lista nuova dall'API, che può segnalare aggiornamenti
   useEffect(
-    () => window.api.onModsUpdated(() => window.api.getInstalledModsInfo().then(setMods)),
+    () =>
+      window.api.onModsUpdated(() => {
+        window.api.getInstalledModsInfo().then(setMods)
+        loadConflicts()
+      }),
     []
   )
+
+  // l'ordine di caricamento decide quale mod vince: dopo averlo cambiato i conflitti si rileggono
+  function changeLoadOrderOpen(open: boolean): void {
+    setLoadOrderOpen(open)
+    if (!open) loadConflicts()
+  }
 
   async function openAddons(): Promise<void> {
     const result = await window.api.openAddonsFolder()
@@ -60,14 +80,22 @@ export default function Installed(): React.JSX.Element {
   }
 
   const q = search.trim().toLowerCase()
+  const inConflict = new Set(conflicts.flatMap((c) => [c.winner, c.loser]))
   const counts: Record<StateFilter, number> = {
     all: mods.length,
     enabled: mods.filter((m) => m.enabled).length,
-    disabled: mods.filter((m) => !m.enabled).length
+    disabled: mods.filter((m) => !m.enabled).length,
+    conflicts: inConflict.size
   }
+  const matchesState = (m: InstalledModInfo): boolean =>
+    stateFilter === 'all'
+      ? true
+      : stateFilter === 'conflicts'
+        ? inConflict.has(m.id)
+        : m.enabled === (stateFilter === 'enabled')
   const visible = mods.filter(
     (m) =>
-      (stateFilter === 'all' || m.enabled === (stateFilter === 'enabled')) &&
+      matchesState(m) &&
       (!q || m.name.toLowerCase().includes(q) || m.author.toLowerCase().includes(q))
   )
   const updates = mods.filter((m) => m.updateAvailable).length
@@ -110,13 +138,49 @@ export default function Installed(): React.JSX.Element {
           <ListOrdered className="size-4" />
           {t('installed.loadOrder')}
         </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          title={t('local.tooltip')}
+          disabled={localInstall.installing}
+          onClick={() => localInstall.install()}
+        >
+          <FileUp className="size-4" />
+          {t('local.button')}
+        </Button>
         <Button variant="outline" size="sm" onClick={openAddons}>
           <FolderOpen className="size-4" />
           {t('installed.openAddons')}
         </Button>
       </div>
 
-      <LoadOrderDialog open={loadOrderOpen} onOpenChange={setLoadOrderOpen} />
+      <LoadOrderDialog open={loadOrderOpen} onOpenChange={changeLoadOrderOpen} />
+      <ConflictsDialog
+        open={conflictsOpen}
+        onOpenChange={setConflictsOpen}
+        conflicts={conflicts}
+        mods={mods}
+        onOpenLoadOrder={() => {
+          setConflictsOpen(false)
+          setLoadOrderOpen(true)
+        }}
+      />
+
+      {conflicts.length > 0 && (
+        <Card className="flex-row flex-wrap items-center gap-3 p-3 text-sm">
+          <TriangleAlert className="size-4 shrink-0 text-destructive" />
+          <span className="min-w-0 flex-1">
+            {t('conflicts.summary', { count: conflicts.length })}
+          </span>
+          <Button variant="outline" size="sm" onClick={() => setConflictsOpen(true)}>
+            {t('conflicts.show')}
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setLoadOrderOpen(true)}>
+            <ListOrdered className="size-4" />
+            {t('installed.loadOrder')}
+          </Button>
+        </Card>
+      )}
       <LinkModDialog mod={linking} onOpenChange={(open) => !open && setLinking(null)} />
 
       {mods.length === 0 ? (
@@ -171,6 +235,22 @@ export default function Installed(): React.JSX.Element {
                     {mod.updateAvailable && <Badge>{t('installed.updateAvailable')}</Badge>}
                     {!mod.available && (
                       <Badge variant="destructive">{t('installed.unavailable')}</Badge>
+                    )}
+                    {inConflict.has(mod.id) && (
+                      <button
+                        type="button"
+                        title={t('conflicts.badgeTooltip')}
+                        onClick={() => setConflictsOpen(true)}
+                      >
+                        <Badge
+                          variant={
+                            conflicts.some((c) => c.loser === mod.id) ? 'destructive' : 'secondary'
+                          }
+                        >
+                          <TriangleAlert className="size-3" />
+                          {t('conflicts.badge')}
+                        </Badge>
+                      </button>
                     )}
                   </div>
                 </div>

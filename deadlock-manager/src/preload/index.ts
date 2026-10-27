@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
+import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import type {
   GameinfoStatus,
@@ -10,12 +10,15 @@ import type {
   InterfaceColors,
   InterfaceColorsResult,
   IpcResult,
+  LocalInstallResult,
   ModChangelogEntry,
+  ModConflict,
   ModDownload,
   ModFilters,
   ModSearchResult,
   Settings,
-  Status
+  Status,
+  UpdateStatus
 } from '../mission/types'
 
 const api = {
@@ -49,6 +52,16 @@ const api = {
   getInstalledModsInfo: (): Promise<InstalledModInfo[]> => ipcRenderer.invoke('mods:installedInfo'),
   /** Mod attive dalla priorità più alta (`pak01`) alla più bassa. */
   getLoadOrder: (): Promise<InstalledMod[]> => ipcRenderer.invoke('mods:loadOrder'),
+  /**
+   * Installa mod da file sul computer: i percorsi dati (es. trascinati nella finestra) oppure,
+   * senza percorsi, quelli scelti dall'utente; `data` è `null` se annulla.
+   */
+  installLocalFiles: (paths?: string[]): Promise<IpcResult<LocalInstallResult[] | null>> =>
+    ipcRenderer.invoke('mods:installLocal', paths),
+  /** Percorso sul disco di un file trascinato nella finestra. */
+  getPathForFile: (file: File): string => webUtils.getPathForFile(file),
+  /** Mod attive che contengono gli stessi file, con quella che vince. */
+  getConflicts: (): Promise<IpcResult<ModConflict[]>> => ipcRenderer.invoke('mods:conflicts'),
   setLoadOrder: (modIds: string[]): Promise<IpcResult<InstalledMod[]>> =>
     ipcRenderer.invoke('mods:setLoadOrder', modIds),
   getCategories: (): Promise<string[]> => ipcRenderer.invoke('mods:categories'),
@@ -78,6 +91,20 @@ const api = {
   /** Importa un pacchetto di un altro manager; `data` è `null` se l'utente annulla. */
   importMods: (): Promise<IpcResult<InterchangeImportResult | null>> =>
     ipcRenderer.invoke('interchange:import'),
+
+  /** Versione dell'app, come in `package.json`. */
+  getAppVersion: (): Promise<string> => ipcRenderer.invoke('app:version'),
+  getUpdateStatus: (): Promise<UpdateStatus> => ipcRenderer.invoke('updates:status'),
+  /** Controlla subito se c'è una versione nuova dell'app (e la scarica dove si può). */
+  checkForUpdates: (): Promise<UpdateStatus> => ipcRenderer.invoke('updates:check'),
+  /** Chiude l'app e installa la versione scaricata. */
+  installUpdate: (): Promise<void> => ipcRenderer.invoke('updates:install'),
+  /** Registra `listener` per i cambi di stato degli aggiornamenti; restituisce la funzione per rimuoverlo. */
+  onUpdateStatus: (listener: (status: UpdateStatus) => void): (() => void) => {
+    const handler = (_: IpcRendererEvent, status: UpdateStatus): void => listener(status)
+    ipcRenderer.on('updates:status', handler)
+    return () => ipcRenderer.removeListener('updates:status', handler)
+  },
 
   /** Controlla `gameinfo.gi` (e lo ripara se la riparazione automatica è attiva). */
   checkGameinfo: (): Promise<IpcResult<GameinfoStatus>> => ipcRenderer.invoke('game:checkGameinfo'),

@@ -44,3 +44,23 @@ export interface InstallProgress {
   /** Byte totali, `0` se sconosciuti. */
   total: number
 }
+
+/** Esito dell'installazione di un file locale: `error` è presente se non è riuscita. */
+export interface LocalInstallResult {
+  /** Nome del file scelto. */
+  file: string
+  error?: string
+}
+
+/**
+ * Due mod attive che contengono gli stessi file: il gioco usa quelli di `winner`, la mod con
+ * l'indice `pakNN` più basso, quindi quei file di `loser` non si vedono.
+ */
+export interface ModConflict {
+  winner: string
+  loser: string
+  /** Numero di file in comune. */
+  files: number
+  /** Alcuni dei file in comune, per mostrarli all'utente. */
+  sample: string[]
+}

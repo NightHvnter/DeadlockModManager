@@ -28,6 +28,8 @@ export interface Settings {
   reduceMotion: boolean
   /** Se `true` rende più scuri (o chiari) testi secondari, bordi e contorno di selezione. */
   highContrast: boolean
+  /** Se `true` l'app controlla all'avvio se c'è una versione nuova e la scarica da sola. */
+  autoUpdate: boolean
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -38,5 +40,6 @@ export const DEFAULT_SETTINGS: Settings = {
   interfaceColors: {},
   textSize: 'normal',
   reduceMotion: false,
-  highContrast: false
+  highContrast: false,
+  autoUpdate: true
 }

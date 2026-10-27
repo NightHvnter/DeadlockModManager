@@ -1,7 +1,8 @@
 import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
-import { join } from 'path'
+import { basename, join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import { checkForUpdates, getUpdateStatus, initUpdater, installUpdate } from './updater'
 import { GameBananaCatalog, INCREMENTAL_INTERVAL_MS } from '../mission/gamebanana'
 import {
   ManageMods,
@@ -22,6 +23,7 @@ import type {
   InstallProgress,
   InterfaceColors,
   IpcResult,
+  LocalInstallResult,
   ModFilters,
   Settings
 } from '../mission/types'
@@ -190,6 +192,41 @@ function registerIpc(): void {
     await syncExternalMods()
     return ManageMods.getLoadOrder()
   })
+  // installazione da file sul computer: i percorsi arrivano dal trascinamento, altrimenti si
+  // chiedono all'utente; un file che non si installa non ferma gli altri
+  ipcMain.handle('mods:installLocal', (event, paths?: string[]) =>
+    toResult(async () => {
+      const gamePath = await requireGamePath()
+      let files = paths ?? []
+      if (!paths) {
+        const window = BrowserWindow.fromWebContents(event.sender)
+        const options: Electron.OpenDialogOptions = {
+          title: translate(language, 'dialog.chooseModFiles'),
+          properties: ['openFile', 'multiSelections'],
+          filters: [{ name: 'Mod (.zip, .rar, .vpk)', extensions: ['zip', 'rar', 'vpk'] }]
+        }
+        const { canceled, filePaths } = window
+          ? await dialog.showOpenDialog(window, options)
+          : await dialog.showOpenDialog(options)
+        if (canceled) return null
+        files = filePaths
+      }
+      const results: LocalInstallResult[] = []
+      for (const path of files) {
+        try {
+          await ManageMods.installLocal(path, gamePath)
+          results.push({ file: basename(path) })
+        } catch (e) {
+          results.push({ file: basename(path), error: describeError(e, language) })
+        }
+      }
+      BrowserWindow.getAllWindows().forEach((w) => w.webContents.send('mods:updated'))
+      return results
+    })
+  )
+  ipcMain.handle('mods:conflicts', () =>
+    toResult(async () => ManageMods.getConflicts(await requireGamePath()))
+  )
   ipcMain.handle('mods:setLoadOrder', (_, modIds: string[]) =>
     toResult(async () => ManageMods.setLoadOrder(modIds, await requireGamePath()))
   )
@@ -279,6 +316,11 @@ function registerIpc(): void {
     })
   )
 
+  ipcMain.handle('app:version', () => app.getVersion())
+  ipcMain.handle('updates:status', () => getUpdateStatus())
+  ipcMain.handle('updates:check', () => checkForUpdates())
+  ipcMain.handle('updates:install', () => installUpdate())
+
   // gameinfo.gi viene controllato solo all'avvio dell'app (dal renderer), con "Gioca" e con
   // "Ripara": mai in background mentre l'app è aperta
   ipcMain.handle('game:checkGameinfo', () => toResult(() => checkGameinfo()))
@@ -363,6 +405,8 @@ app.whenReady().then(async () => {
 
   registerIpc()
   createWindow()
+  // gli aggiornamenti dell'app si controllano all'avvio, se l'utente non li ha spenti
+  initUpdater((await readSettings()).autoUpdate)
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the

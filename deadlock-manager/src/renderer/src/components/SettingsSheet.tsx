@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Download, FolderOpen, Palette, RefreshCw, Search, Settings, Upload } from 'lucide-react'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import SettingsGroup from '@/components/SettingsGroup'
+import { useUpdates } from '@/hooks/useUpdates'
 import {
   Select,
   SelectContent,
@@ -25,7 +26,13 @@ import { useI18n } from '@/hooks/useI18n'
 import { useSettings } from '@/hooks/useSettings'
 import { useTheme, THEME_IDS, type Theme } from '@/hooks/useTheme'
 import { LANGUAGE_IDS, LANGUAGES, type Language } from '../../../mission/i18n'
-import { TEXT_SIZE_IDS, TEXT_SIZES, type Status, type TextSize } from '../../../mission/types'
+import {
+  RELEASES_URL,
+  TEXT_SIZE_IDS,
+  TEXT_SIZES,
+  type Status,
+  type TextSize
+} from '../../../mission/types'
 
 /** Valore della select per "usa la lingua del sistema" (le select non accettano `null`). */
 const SYSTEM_LANGUAGE = 'system'
@@ -40,6 +47,8 @@ export default function SettingsSheet(): React.JSX.Element {
   const [refreshing, setRefreshing] = useState(false)
   const [transferring, setTransferring] = useState(false)
   const navigate = useNavigate()
+  const updates = useUpdates()
+  const [checking, setChecking] = useState(false)
   const textSize = settings?.textSize ?? 'normal'
   const languageValue = settings?.language ?? SYSTEM_LANGUAGE
 
@@ -90,6 +99,36 @@ export default function SettingsSheet(): React.JSX.Element {
           .map((s) => `${s.name}: ${t(`interchange.reason.${s.reason}`)}`)
           .join('; ')
       })
+  }
+
+  async function checkUpdates(): Promise<void> {
+    setChecking(true)
+    const status = await window.api.checkForUpdates()
+    setChecking(false)
+    if (status.state === 'upToDate') toast.success(t('updates.upToDate'))
+  }
+
+  /** Riga che descrive lo stato degli aggiornamenti. */
+  function updateStatusText(): string {
+    const s = updates.status
+    switch (s.state) {
+      case 'checking':
+        return t('updates.checking')
+      case 'upToDate':
+        return t('updates.upToDate')
+      case 'downloading':
+        return t('updates.downloading', { version: s.version, percent: s.percent })
+      case 'ready':
+        return t('updates.ready', { version: s.version })
+      case 'error':
+        return t('updates.error', { message: s.message })
+      case 'unsupported':
+        return updates.manualUpdate
+          ? t('updates.manual', { version: updates.manualUpdate })
+          : t('updates.unsupported')
+      default:
+        return t('updates.idle')
+    }
   }
 
   async function openAddons(): Promise<void> {
@@ -198,6 +237,60 @@ export default function SettingsSheet(): React.JSX.Element {
                 </SelectContent>
               </Select>
             </section>
+
+            <SettingsGroup
+              id="updates"
+              title={t('updates.title')}
+              description={t('updates.version', { version: updates.version ?? '…' })}
+            >
+              <p
+                className={
+                  updates.status.state === 'error'
+                    ? 'text-sm text-destructive'
+                    : 'text-sm text-muted-foreground'
+                }
+              >
+                {updateStatusText()}
+              </p>
+              <div className="grid gap-1">
+                <Label className="flex items-center gap-2">
+                  <Checkbox
+                    checked={settings?.autoUpdate ?? true}
+                    onCheckedChange={(checked) => update({ autoUpdate: checked === true })}
+                  />
+                  {t('updates.auto')}
+                </Label>
+                <p className="text-xs text-muted-foreground">{t('updates.autoHint')}</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={
+                    checking ||
+                    updates.status.state === 'checking' ||
+                    updates.status.state === 'downloading'
+                  }
+                  onClick={checkUpdates}
+                >
+                  <RefreshCw className={checking ? 'size-4 animate-spin' : 'size-4'} />
+                  {t('updates.check')}
+                </Button>
+                {updates.status.state === 'ready' && (
+                  <Button size="sm" onClick={() => window.api.installUpdate()}>
+                    {t('updates.restart')}
+                  </Button>
+                )}
+                <a
+                  href={RELEASES_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={buttonVariants({ variant: 'ghost', size: 'sm' })}
+                >
+                  {t('updates.releases')}
+                </a>
+              </div>
+            </SettingsGroup>
 
             <SettingsGroup
               id="accessibility"
