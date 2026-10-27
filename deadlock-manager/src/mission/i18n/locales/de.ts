@@ -54,11 +54,13 @@ export const de: Messages = {
   'a11y.textSize.large': 'Groß',
   'a11y.textSize.xlarge': 'Sehr groß',
   'a11y.reduceMotion': 'Bewegung reduzieren',
-  'a11y.reduceMotionHint': 'Entfernt Animationen und Übergänge. Sie werden auch entfernt, wenn das System reduzierte Bewegung verlangt.',
+  'a11y.reduceMotionHint':
+    'Entfernt Animationen und Übergänge. Sie werden auch entfernt, wenn das System reduzierte Bewegung verlangt.',
   'a11y.highContrast': 'Hoher Kontrast',
   'a11y.highContrastHint': 'Kräftigere Nebentexte, Rahmen und Fokusrahmen.',
   'a11y.gameColors': 'Spielfarben für Farbenblinde',
-  'a11y.gameColorsHint': 'Auf der Seite Farben ändert das Preset Farbenblind die Farben von Gegnern, Verbündeten und Lebensleisten in Deadlock.',
+  'a11y.gameColorsHint':
+    'Auf der Seite Farben ändert das Preset Farbenblind die Farben von Gegnern, Verbündeten und Lebensleisten in Deadlock.',
 
   'colors.title': 'Oberflächenfarben',
   'colors.description':
@@ -185,6 +187,7 @@ export const de: Messages = {
   'installed.externalTooltip': 'Im addons-Ordner gefunden, nicht von dieser App installiert',
   'link.button': 'Verknüpfen',
   'link.tooltip': 'Diese Mod mit ihrer GameBanana-Seite verknüpfen',
+  'link.change': 'Verknüpfte GameBanana-Mod ändern',
   'link.title': 'Mit GameBanana verknüpfen',
   'link.description':
     'Wähle die GameBanana-Mod, von der {name} stammt: Sie übernimmt Name, Autor und Bild, und du kannst sie aktualisieren.',

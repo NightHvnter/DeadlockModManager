@@ -54,11 +54,13 @@ export const fr: Messages = {
   'a11y.textSize.large': 'Grand',
   'a11y.textSize.xlarge': 'Très grand',
   'a11y.reduceMotion': 'Réduire les animations',
-  'a11y.reduceMotionHint': 'Supprime les animations et les transitions. Elles sont aussi supprimées quand le système demande de réduire les mouvements.',
+  'a11y.reduceMotionHint':
+    'Supprime les animations et les transitions. Elles sont aussi supprimées quand le système demande de réduire les mouvements.',
   'a11y.highContrast': 'Contraste élevé',
   'a11y.highContrastHint': 'Textes secondaires, bordures et contour de sélection plus marqués.',
   'a11y.gameColors': 'Couleurs du jeu pour daltoniens',
-  'a11y.gameColorsHint': 'Sur la page Couleurs, le préréglage Daltonisme change les couleurs des ennemis, des alliés et des barres de vie dans Deadlock.',
+  'a11y.gameColorsHint':
+    'Sur la page Couleurs, le préréglage Daltonisme change les couleurs des ennemis, des alliés et des barres de vie dans Deadlock.',
 
   'colors.title': "Couleurs de l'interface",
   'colors.description':
@@ -186,6 +188,7 @@ export const fr: Messages = {
   'installed.externalTooltip': 'Trouvé dans le dossier addons, non installé par cette app',
   'link.button': 'Lier',
   'link.tooltip': 'Lier ce mod à sa page GameBanana',
+  'link.change': 'Changer le mod GameBanana lié',
   'link.title': 'Lier à GameBanana',
   'link.description':
     "Choisissez le mod GameBanana d'où vient {name} : il prendra son nom, son auteur et son image, et vous pourrez le mettre à jour.",

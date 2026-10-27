@@ -19,6 +19,7 @@ const HERO_CODENAMES: Record<string, string> = {
   forge: 'McGinnis',
   ghost: 'Lady Geist',
   gigawatt: 'Seven',
+  necro: 'Graves',
   hornet: 'Vindicta',
   inferno: 'Infernus',
   krill: 'Mo & Krill',
