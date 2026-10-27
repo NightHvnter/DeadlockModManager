@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router'
-import { Download, LayoutGrid, Package, Palette, Play } from 'lucide-react'
+import { Download, Layers, LayoutGrid, Package, Palette, Play } from 'lucide-react'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { useGameinfo } from '@/hooks/useGameinfo'
 import { useI18n } from '@/hooks/useI18n'
@@ -11,6 +11,7 @@ import type { MessageKey } from '../../../mission/i18n'
 const links: { to: string; label: MessageKey; icon: typeof LayoutGrid }[] = [
   { to: '/', label: 'nav.mods', icon: LayoutGrid },
   { to: '/installed', label: 'nav.installed', icon: Download },
+  { to: '/profiles', label: 'nav.profiles', icon: Layers },
   { to: '/colors', label: 'nav.colors', icon: Palette }
 ]
 

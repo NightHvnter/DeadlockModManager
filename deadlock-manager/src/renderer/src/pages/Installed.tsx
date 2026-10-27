@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { FileUp, FolderOpen, Link2, ListOrdered, TriangleAlert } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -21,11 +21,16 @@ import ConflictsDialog from '@/components/ConflictsDialog'
 import { useI18n } from '@/hooks/useI18n'
 import { useModActions } from '@/hooks/useModActions'
 import { useLocalInstall } from '@/hooks/useLocalInstall'
+import { useProfiles } from '@/hooks/useProfiles'
 import type { InstalledModInfo, ModConflict } from '../../../mission/types'
 
 /** Stati per cui si possono filtrare le mod; il nome di ognuno è alla chiave `installed.show.<id>`. */
 const STATE_FILTERS = ['all', 'enabled', 'disabled', 'conflicts'] as const
 type StateFilter = (typeof STATE_FILTERS)[number]
+
+/** Valori speciali del selettore dei profili (le select non accettano `null`). */
+const NO_PROFILE = '__none'
+const MANAGE_PROFILES = '__manage'
 
 /** Pagina con le mod installate: attivazione, aggiornamento e disinstallazione. */
 export default function Installed(): React.JSX.Element {
@@ -39,6 +44,8 @@ export default function Installed(): React.JSX.Element {
   const [conflicts, setConflicts] = useState<ModConflict[]>([])
   const [conflictsOpen, setConflictsOpen] = useState(false)
   const localInstall = useLocalInstall()
+  const profiles = useProfiles()
+  const navigate = useNavigate()
 
   /** Rilegge i conflitti tra le mod attive; un errore lascia semplicemente l'elenco vuoto. */
   const loadConflicts = (): void =>
@@ -127,10 +134,40 @@ export default function Installed(): React.JSX.Element {
           {t('installed.count', { count: mods.length })}
           {updates > 0 && t('installed.toUpdate', { count: updates })}
         </span>
+        <Select
+          value={profiles.state?.activeId ?? NO_PROFILE}
+          onValueChange={(v) => {
+            if (v === MANAGE_PROFILES) navigate('/profiles')
+            else if (v && v !== NO_PROFILE) void profiles.apply(v)
+          }}
+        >
+          <SelectTrigger
+            className="ml-auto w-48"
+            aria-label={t('profiles.switch')}
+            disabled={profiles.applying !== null}
+          >
+            <SelectValue>
+              {profiles.state?.profiles.find((p) => p.id === profiles.state?.activeId)?.name ??
+                t('profiles.none')}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {!profiles.state?.activeId && (
+              <SelectItem value={NO_PROFILE} disabled>
+                {t('profiles.none')}
+              </SelectItem>
+            )}
+            {profiles.state?.profiles.map((p) => (
+              <SelectItem key={p.id} value={p.id}>
+                {p.name}
+              </SelectItem>
+            ))}
+            <SelectItem value={MANAGE_PROFILES}>{t('profiles.manage')}</SelectItem>
+          </SelectContent>
+        </Select>
         <Button
           variant="outline"
           size="sm"
-          className="ml-auto"
           title={t('loadOrder.tooltip')}
           disabled={mods.filter((m) => m.enabled).length < 2}
           onClick={() => setLoadOrderOpen(true)}
