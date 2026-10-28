@@ -108,21 +108,35 @@ export class GameBananaClient {
 
   /**
    * GET di un JSON. Ritenta errori di rete, timeout, 429 e 5xx con attese crescenti,
-   * rispettando `Retry-After`.
+   * rispettando `Retry-After`. Ritenta anche le risposte 200 con un corpo che non è JSON: capita
+   * che Cloudflare tenga in cache una risposta vuota, quindi i tentativi successivi aggirano la
+   * cache con un parametro in più.
    */
   private get<T>(url: string): Promise<T> {
     return this.limiter.run(async () => {
+      let bustCache = false
       for (let attempt = 0; ; attempt++) {
         this.requests++
         let delay = Math.min(BASE_RETRY_DELAY_MS * 2 ** attempt, MAX_RETRY_DELAY_MS)
         let status = 0
         try {
-          const res = await fetch(url, {
+          const target = new URL(url)
+          if (bustCache) target.searchParams.set('_nocache', String(Date.now()))
+          const res = await fetch(target, {
             headers: { 'User-Agent': USER_AGENT },
             signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
           })
           status = res.status
-          if (res.ok) return (await res.json()) as T
+          if (res.ok) {
+            try {
+              return (await res.json()) as T
+            } catch {
+              // corpo vuoto o troncato: per l'utente è una risposta non valida, non un 200
+              status = 502
+              bustCache = true
+              throw new Error('invalid JSON body')
+            }
+          }
           if (status !== 429 && status < 500) throw new AppError('error.api', { status })
           delay = retryAfterMs(res.headers.get('retry-after')) ?? delay
         } catch (e) {
