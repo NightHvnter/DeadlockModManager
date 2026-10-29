@@ -1,0 +1,70 @@
+# Controlla ogni push e ogni pull request: lint, typecheck e build su Windows, macOS e Linux, così
+# i problemi di una piattaforma si vedono subito e non solo quando si pubblica un tag di release.
+name: CI
+
+on:
+  push:
+    branches: ['**']
+    tags-ignore: ['**']
+  pull_request:
+
+permissions:
+  contents: read
+
+# un nuovo push sullo stesso branch rende inutile la verifica di quello precedente
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: deadlock-manager
+
+jobs:
+  lint:
+    name: Lint and typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: deadlock-manager/package-lock.json
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+
+  build:
+    name: Build (${{ matrix.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: win
+          - os: macos-latest
+            target: mac
+          - os: ubuntu-latest
+            target: linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: deadlock-manager/package-lock.json
+
+      - run: npm ci
+
+      - name: Build
+        run: npx electron-vite build
+
+      # solo la cartella dell'app, senza installer: basta a verificare che electron-builder impacchetti
+      # l'app con questa versione di Electron, e non servono gli strumenti per rpm, pacman e flatpak
+      - name: Package (unpacked)
+        run: npx electron-builder --${{ matrix.target }} --dir --publish never

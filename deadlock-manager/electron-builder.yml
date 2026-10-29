@@ -40,6 +40,9 @@ linux:
     - flatpak
   maintainer: NightHvnter
   category: Utility
+  # il file .desktop prende il nome da desktopName in package.json, che Electron usa anche come
+  # app_id / WM_CLASS: così il desktop associa le finestre aperte all'icona dell'app
+  syncDesktopName: true
 appImage:
   artifactName: ${name}-${version}.${ext}
 # I valori predefiniti di electron-builder (20.08) sono fuori supporto da anni
