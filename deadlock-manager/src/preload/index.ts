@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import type {
+  ApplyProfileResult,
   GameinfoStatus,
   InstalledMod,
   InstalledModInfo,
@@ -16,6 +17,7 @@ import type {
   ModDownload,
   ModFilters,
   ModSearchResult,
+  ProfilesState,
   Settings,
   Status,
   UpdateStatus
@@ -60,6 +62,17 @@ const api = {
     ipcRenderer.invoke('mods:installLocal', paths),
   /** Percorso sul disco di un file trascinato nella finestra. */
   getPathForFile: (file: File): string => webUtils.getPathForFile(file),
+  getProfiles: (): Promise<ProfilesState> => ipcRenderer.invoke('profiles:list'),
+  /** Crea un profilo con le mod attive adesso (e lo rende attivo) oppure vuoto. */
+  createProfile: (name: string, fromCurrent: boolean): Promise<IpcResult<ProfilesState>> =>
+    ipcRenderer.invoke('profiles:create', name, fromCurrent),
+  renameProfile: (id: string, name: string): Promise<IpcResult<ProfilesState>> =>
+    ipcRenderer.invoke('profiles:rename', id, name),
+  deleteProfile: (id: string): Promise<IpcResult<ProfilesState>> =>
+    ipcRenderer.invoke('profiles:delete', id),
+  /** Attiva le mod del profilo, disattiva le altre e ne imposta l'ordine di caricamento. */
+  applyProfile: (id: string): Promise<IpcResult<ApplyProfileResult>> =>
+    ipcRenderer.invoke('profiles:apply', id),
   /** Mod attive che contengono gli stessi file, con quella che vince. */
   getConflicts: (): Promise<IpcResult<ModConflict[]>> => ipcRenderer.invoke('mods:conflicts'),
   setLoadOrder: (modIds: string[]): Promise<IpcResult<InstalledMod[]>> =>

@@ -24,6 +24,7 @@ export type {
 } from './Installed'
 export type { GameinfoStatus } from './Game'
 export { type UpdateStatus, RELEASES_URL } from './Update'
+export type { ApplyProfileResult, ModProfile, ProfileMod, ProfilesState } from './Profile'
 export {
   COLOR_SLOTS,
   COLOR_SLOT_IDS,

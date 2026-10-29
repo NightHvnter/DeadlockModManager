@@ -4,6 +4,7 @@ import Colors from './pages/Colors'
 import Home from './pages/Home'
 import Installed from './pages/Installed'
 import NotFound from './pages/NotFound'
+import Profiles from './pages/Profiles'
 
 export default function Router(): React.JSX.Element {
   return (
@@ -12,6 +13,7 @@ export default function Router(): React.JSX.Element {
         <Route path="/" element={<Layout />}>
           <Route index element={<Home />} />
           <Route path="installed" element={<Installed />} />
+          <Route path="profiles" element={<Profiles />} />
           <Route path="colors" element={<Colors />} />
           <Route path="*" element={<NotFound />} />
         </Route>

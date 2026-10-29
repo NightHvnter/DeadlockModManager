@@ -76,9 +76,15 @@ export class ManageMods {
   /** Coda delle operazioni: due installazioni insieme potrebbero scegliere lo stesso `pakNN`. */
   private static queue: Promise<unknown> = Promise.resolve()
 
+  /**
+   * Chiamata dopo ogni operazione della coda, riuscita o no, ancora dentro la coda: serve ai
+   * profili per seguire le modifiche alle mod (vedi `./profiles`). Un suo errore viene ignorato.
+   */
+  public static onChange: (() => Promise<void>) | null = null
+
   /** Esegue `fn` dopo che le operazioni precedenti sono terminate. */
   private static exclusive<T>(fn: () => Promise<T>): Promise<T> {
-    const run = this.queue.then(fn, fn)
+    const run = this.queue.then(fn, fn).finally(() => this.onChange?.().catch(() => {}))
     this.queue = run.catch(() => {})
     return run
   }

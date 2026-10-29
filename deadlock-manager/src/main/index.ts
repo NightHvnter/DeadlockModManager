@@ -8,6 +8,12 @@ import {
   ManageMods,
   getInstalledModIds,
   getInstalledMods,
+  applyProfile,
+  createProfile,
+  deleteProfile,
+  readProfiles,
+  renameProfile,
+  syncActiveProfile,
   type ExternalLookup
 } from '../mission/deadlock'
 import {
@@ -224,6 +230,22 @@ function registerIpc(): void {
       return results
     })
   )
+  // profili: l'elenco delle mod da tenere attive, con il loro ordine
+  ipcMain.handle('profiles:list', () => readProfiles())
+  ipcMain.handle('profiles:create', (_, name: string, fromCurrent: boolean) =>
+    toResult(() => createProfile(name, fromCurrent))
+  )
+  ipcMain.handle('profiles:rename', (_, id: string, name: string) =>
+    toResult(() => renameProfile(id, name))
+  )
+  ipcMain.handle('profiles:delete', (_, id: string) => toResult(() => deleteProfile(id)))
+  ipcMain.handle('profiles:apply', (_, id: string) =>
+    toResult(async () => {
+      const result = await applyProfile(id, await requireGamePath())
+      BrowserWindow.getAllWindows().forEach((w) => w.webContents.send('mods:updated'))
+      return result
+    })
+  )
   ipcMain.handle('mods:conflicts', () =>
     toResult(async () => ManageMods.getConflicts(await requireGamePath()))
   )
@@ -358,6 +380,10 @@ async function checkGameinfo(forceRepair = false): Promise<GameinfoStatus> {
   )
 }
 
+// su KDE Wayland la gestione colore di Chromium riempie il terminale di errori inutili
+if (process.platform === 'linux')
+  app.commandLine.appendSwitch('disable-features', 'WaylandWpColorManagerV1')
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
@@ -403,6 +429,8 @@ app.whenReady().then(async () => {
     if (gamePath) await writeSettings({ gamePath })
   }
 
+  // il profilo attivo segue ogni modifica alle mod
+  ManageMods.onChange = syncActiveProfile
   registerIpc()
   createWindow()
   // gli aggiornamenti dell'app si controllano all'avvio, se l'utente non li ha spenti
