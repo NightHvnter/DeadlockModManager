@@ -20,6 +20,7 @@ the app → **Open**).
 - Mod details: image gallery, description, audio preview, update history and choice of the file to download
 - Installation from `.zip`, `.rar` or `.vpk` files, with MD5 verification and download progress
 - **Installed** page: enable/disable, update and uninstall mods, and change their load order
+- **Profiles**: sets of enabled mods with their load order, to switch between them in one click
 - **Play** button that makes sure mods are still active after a game update and launches Deadlock through Steam
 - Automatic detection of the Deadlock folder in the Steam libraries (Windows, Linux, macOS)
 - **Colors** page to change the colors of Deadlock's own interface (text, enemies, allies, health
@@ -66,6 +67,23 @@ index. From the **Installed** page → **Load order** you can reorder the enable
 them or with the arrows): when you save, the indices are reassigned in the chosen order, `pak01`
 to the mod at the top. Files in `addons` that were not installed by the app are left untouched.
 Disabled mods are not listed and go to the bottom when they are enabled again.
+
+## Profiles
+
+A profile is a set of enabled mods with their load order, for example "Ranked" with only HUD and
+sounds and "Fun" with every skin. Profiles are managed from the **Profiles** page and switched from
+the **Installed** page. Using a profile enables its mods, disables all the others and restores its
+load order; no mod is installed or uninstalled.
+
+- A profile can be created from the mods enabled now (it becomes the one in use right away) or
+  empty (using it disables every mod)
+- The profile in use follows every change: installing, enabling, disabling or reordering mods
+  updates it by itself
+- Mods of a profile that are no longer installed stay in it and are shown as missing, so they can
+  be installed again
+- Deleting a profile leaves the mods as they are
+
+Profiles are saved in `profiles.json` in the app's data folder.
 
 ## Mods from other managers
 
