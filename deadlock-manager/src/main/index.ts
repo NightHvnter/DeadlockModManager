@@ -24,6 +24,7 @@ import {
   writeSettings
 } from '../mission/settings'
 import type {
+  AcceptedConflict,
   GameinfoStatus,
   InstalledModInfo,
   InstallProgress,
@@ -247,7 +248,21 @@ function registerIpc(): void {
     })
   )
   ipcMain.handle('mods:conflicts', () =>
-    toResult(async () => ManageMods.getConflicts(await requireGamePath()))
+    toResult(async () =>
+      ManageMods.getConflicts(await requireGamePath(), (await readSettings()).acceptedConflicts)
+    )
+  )
+  ipcMain.handle('mods:acceptConflicts', (_, pairs: AcceptedConflict[], accepted: boolean) =>
+    toResult(async () => {
+      const key = (c: AcceptedConflict): string => `${c.winner}\n${c.loser}`
+      const changed = new Set(pairs.map(key))
+      const rest = (await readSettings()).acceptedConflicts.filter((c) => !changed.has(key(c)))
+      const acceptedConflicts = accepted
+        ? [...rest, ...pairs.map(({ winner, loser }) => ({ winner, loser }))]
+        : rest
+      await writeSettings({ acceptedConflicts })
+      return ManageMods.getConflicts(await requireGamePath(), acceptedConflicts)
+    })
   )
   ipcMain.handle('mods:setLoadOrder', (_, modIds: string[]) =>
     toResult(async () => ManageMods.setLoadOrder(modIds, await requireGamePath()))

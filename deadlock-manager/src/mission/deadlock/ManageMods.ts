@@ -6,6 +6,7 @@ import {
   InterfaceColors,
   InterfaceColorsResult,
   Mod,
+  AcceptedConflict,
   ModConflict,
   ModChangelogEntry,
   ModDownload
@@ -964,9 +965,16 @@ export class ManageMods {
    * Coppie di mod attive che contengono gli stessi file. Le mod si leggono nell'ordine di
    * caricamento: il primo file con un certo percorso è quello che il gioco usa, quindi a vincere è
    * sempre la mod con l'indice `pakNN` più basso. Con tre mod sullo stesso file, le due perdenti
-   * vengono confrontate solo con quella che vince. I VPK illeggibili vengono saltati.
+   * vengono confrontate solo con quella che vince. I VPK illeggibili vengono saltati, e anche i
+   * file alla radice del VPK (`readme.txt` e simili): il gioco carica le risorse solo dalle
+   * cartelle, quindi lì non c'è niente che una mod possa sostituire.
+   * @param accepted Coppie che l'utente ha già accettato, segnate con `accepted: true`
    */
-  public static async getConflicts(gamePath: string): Promise<ModConflict[]> {
+  public static async getConflicts(
+    gamePath: string,
+    accepted: readonly AcceptedConflict[] = []
+  ): Promise<ModConflict[]> {
+    const acceptedKeys = new Set(accepted.map((a) => `${a.winner}\n${a.loser}`))
     const addons = join(gamePath, 'game', 'citadel', 'addons')
     const owners = new Map<string, string>()
     const pairs = new Map<string, ModConflict>()
@@ -977,6 +985,7 @@ export class ManageMods {
         vpk?.paths().forEach((p) => paths.add(p))
       }
       for (const path of paths) {
+        if (!path.includes('/')) continue
         const winner = owners.get(path)
         if (!winner) {
           owners.set(path, entry.id)
@@ -984,7 +993,13 @@ export class ManageMods {
         }
         if (winner === entry.id) continue
         const key = `${winner}\n${entry.id}`
-        const pair = pairs.get(key) ?? { winner, loser: entry.id, files: 0, sample: [] }
+        const pair = pairs.get(key) ?? {
+          winner,
+          loser: entry.id,
+          files: 0,
+          sample: [],
+          accepted: acceptedKeys.has(key)
+        }
         pair.files++
         if (pair.sample.length < 5) pair.sample.push(path)
         pairs.set(key, pair)

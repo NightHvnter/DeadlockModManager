@@ -63,4 +63,15 @@ export interface ModConflict {
   files: number
   /** Alcuni dei file in comune, per mostrarli all'utente. */
   sample: string[]
+  /** `true` se l'utente ha accettato che `winner` abbia la priorità su `loser`. */
+  accepted: boolean
+}
+
+/**
+ * Conflitto che l'utente ha accettato: finché `winner` vince su `loser` non viene più segnalato.
+ * Se l'ordine di caricamento si inverte è una coppia diversa, e torna a essere segnalato.
+ */
+export interface AcceptedConflict {
+  winner: string
+  loser: string
 }

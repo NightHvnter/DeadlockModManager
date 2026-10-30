@@ -16,6 +16,7 @@ export {
   TEXT_SIZE_IDS
 } from './Settings'
 export type {
+  AcceptedConflict,
   InstalledMod,
   InstalledModInfo,
   InstallProgress,
