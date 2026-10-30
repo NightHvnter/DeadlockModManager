@@ -67,6 +67,13 @@ import {
 } from './interchange'
 const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
+/** Copia di un file sul server dei file di GameBanana (`/mods/...` per le mod, `/sounds/...` per i suoni). */
+function filesServerUrl(modId: string, fileName: string): string | undefined {
+  const ref = parseModId(modId)
+  if (!ref) return undefined
+  return `https://files.gamebanana.com/${ref.type.toLowerCase()}s/${encodeURIComponent(fileName)}`
+}
+
 /** Chiamata con i byte ricevuti e quelli totali (`0` se sconosciuti) durante il download. */
 export type ProgressCallback = (received: number, total: number) => void
 
@@ -118,7 +125,13 @@ export class ManageMods {
 
       // 1. Download e verifica
       const archive = join(tmp, basename(file.name))
-      await this.downloadFile(file.url, archive, file.size, onProgress)
+      await this.downloadFile(
+        file.url,
+        archive,
+        file.size,
+        onProgress,
+        filesServerUrl(mod.id, file.name)
+      )
       if (file.md5Checksum && (await this.md5(archive)) !== file.md5Checksum.toLowerCase()) {
         throw new AppError('error.checksum')
       }
@@ -336,14 +349,28 @@ export class ManageMods {
     }))
   }
 
+  /**
+   * Scarica `url` in `dest`. Per alcuni file il link `/dl/<id>` di GameBanana risponde 200 con
+   * una pagina d'errore HTML invece del file: in quel caso, o se la richiesta fallisce, riprova da
+   * `fallbackUrl`. Una pagina HTML non è mai il file, quindi diventa "download fallito" e non un
+   * checksum sbagliato.
+   */
   private static async downloadFile(
     url: string,
     dest: string,
     size: number,
-    onProgress?: ProgressCallback
+    onProgress?: ProgressCallback,
+    fallbackUrl?: string
   ): Promise<void> {
-    const res = await fetch(url)
-    if (!res.ok || !res.body) throw new AppError('error.downloadFailed', { status: res.status })
+    const isFile = (r: Response): boolean =>
+      r.ok && !!r.body && !r.headers.get('content-type')?.includes('text/html')
+    let res = await fetch(url)
+    if (!isFile(res) && fallbackUrl) {
+      await res.body?.cancel()
+      res = await fetch(fallbackUrl)
+    }
+    if (!isFile(res))
+      throw new AppError('error.downloadFailed', { status: res.ok ? 502 : res.status })
     const total = Number(res.headers.get('content-length')) || size || 0
     let received = 0
     let lastReport = 0
