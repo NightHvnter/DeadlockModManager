@@ -88,6 +88,8 @@ export default function Installed(): React.JSX.Element {
 
   const q = search.trim().toLowerCase()
   const inConflict = new Set(conflicts.flatMap((c) => [c.winner, c.loser]))
+  // il banner segnala solo i conflitti che l'utente non ha ancora accettato
+  const pendingConflicts = conflicts.filter((c) => !c.accepted).length
   const counts: Record<StateFilter, number> = {
     all: mods.length,
     enabled: mods.filter((m) => m.enabled).length,
@@ -197,17 +199,18 @@ export default function Installed(): React.JSX.Element {
         onOpenChange={setConflictsOpen}
         conflicts={conflicts}
         mods={mods}
+        onConflictsChange={setConflicts}
         onOpenLoadOrder={() => {
           setConflictsOpen(false)
           setLoadOrderOpen(true)
         }}
       />
 
-      {conflicts.length > 0 && (
+      {pendingConflicts > 0 && (
         <Card className="flex-row flex-wrap items-center gap-3 p-3 text-sm">
           <TriangleAlert className="size-4 shrink-0 text-destructive" />
           <span className="min-w-0 flex-1">
-            {t('conflicts.summary', { count: conflicts.length })}
+            {t('conflicts.summary', { count: pendingConflicts })}
           </span>
           <Button variant="outline" size="sm" onClick={() => setConflictsOpen(true)}>
             {t('conflicts.show')}
@@ -281,7 +284,9 @@ export default function Installed(): React.JSX.Element {
                       >
                         <Badge
                           variant={
-                            conflicts.some((c) => c.loser === mod.id) ? 'destructive' : 'secondary'
+                            conflicts.some((c) => c.loser === mod.id && !c.accepted)
+                              ? 'destructive'
+                              : 'secondary'
                           }
                         >
                           <TriangleAlert className="size-3" />

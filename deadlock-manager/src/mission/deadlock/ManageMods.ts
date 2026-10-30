@@ -6,6 +6,7 @@ import {
   InterfaceColors,
   InterfaceColorsResult,
   Mod,
+  AcceptedConflict,
   ModConflict,
   ModChangelogEntry,
   ModDownload
@@ -66,6 +67,13 @@ import {
 } from './interchange'
 const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
+/** Copia di un file sul server dei file di GameBanana (`/mods/...` per le mod, `/sounds/...` per i suoni). */
+function filesServerUrl(modId: string, fileName: string): string | undefined {
+  const ref = parseModId(modId)
+  if (!ref) return undefined
+  return `https://files.gamebanana.com/${ref.type.toLowerCase()}s/${encodeURIComponent(fileName)}`
+}
+
 /** Chiamata con i byte ricevuti e quelli totali (`0` se sconosciuti) durante il download. */
 export type ProgressCallback = (received: number, total: number) => void
 
@@ -117,7 +125,13 @@ export class ManageMods {
 
       // 1. Download e verifica
       const archive = join(tmp, basename(file.name))
-      await this.downloadFile(file.url, archive, file.size, onProgress)
+      await this.downloadFile(
+        file.url,
+        archive,
+        file.size,
+        onProgress,
+        filesServerUrl(mod.id, file.name)
+      )
       if (file.md5Checksum && (await this.md5(archive)) !== file.md5Checksum.toLowerCase()) {
         throw new AppError('error.checksum')
       }
@@ -335,14 +349,28 @@ export class ManageMods {
     }))
   }
 
+  /**
+   * Scarica `url` in `dest`. Per alcuni file il link `/dl/<id>` di GameBanana risponde 200 con
+   * una pagina d'errore HTML invece del file: in quel caso, o se la richiesta fallisce, riprova da
+   * `fallbackUrl`. Una pagina HTML non è mai il file, quindi diventa "download fallito" e non un
+   * checksum sbagliato.
+   */
   private static async downloadFile(
     url: string,
     dest: string,
     size: number,
-    onProgress?: ProgressCallback
+    onProgress?: ProgressCallback,
+    fallbackUrl?: string
   ): Promise<void> {
-    const res = await fetch(url)
-    if (!res.ok || !res.body) throw new AppError('error.downloadFailed', { status: res.status })
+    const isFile = (r: Response): boolean =>
+      r.ok && !!r.body && !r.headers.get('content-type')?.includes('text/html')
+    let res = await fetch(url)
+    if (!isFile(res) && fallbackUrl) {
+      await res.body?.cancel()
+      res = await fetch(fallbackUrl)
+    }
+    if (!isFile(res))
+      throw new AppError('error.downloadFailed', { status: res.ok ? 502 : res.status })
     const total = Number(res.headers.get('content-length')) || size || 0
     let received = 0
     let lastReport = 0
@@ -964,9 +992,16 @@ export class ManageMods {
    * Coppie di mod attive che contengono gli stessi file. Le mod si leggono nell'ordine di
    * caricamento: il primo file con un certo percorso è quello che il gioco usa, quindi a vincere è
    * sempre la mod con l'indice `pakNN` più basso. Con tre mod sullo stesso file, le due perdenti
-   * vengono confrontate solo con quella che vince. I VPK illeggibili vengono saltati.
+   * vengono confrontate solo con quella che vince. I VPK illeggibili vengono saltati, e anche i
+   * file alla radice del VPK (`readme.txt` e simili): il gioco carica le risorse solo dalle
+   * cartelle, quindi lì non c'è niente che una mod possa sostituire.
+   * @param accepted Coppie che l'utente ha già accettato, segnate con `accepted: true`
    */
-  public static async getConflicts(gamePath: string): Promise<ModConflict[]> {
+  public static async getConflicts(
+    gamePath: string,
+    accepted: readonly AcceptedConflict[] = []
+  ): Promise<ModConflict[]> {
+    const acceptedKeys = new Set(accepted.map((a) => `${a.winner}\n${a.loser}`))
     const addons = join(gamePath, 'game', 'citadel', 'addons')
     const owners = new Map<string, string>()
     const pairs = new Map<string, ModConflict>()
@@ -977,6 +1012,7 @@ export class ManageMods {
         vpk?.paths().forEach((p) => paths.add(p))
       }
       for (const path of paths) {
+        if (!path.includes('/')) continue
         const winner = owners.get(path)
         if (!winner) {
           owners.set(path, entry.id)
@@ -984,7 +1020,13 @@ export class ManageMods {
         }
         if (winner === entry.id) continue
         const key = `${winner}\n${entry.id}`
-        const pair = pairs.get(key) ?? { winner, loser: entry.id, files: 0, sample: [] }
+        const pair = pairs.get(key) ?? {
+          winner,
+          loser: entry.id,
+          files: 0,
+          sample: [],
+          accepted: acceptedKeys.has(key)
+        }
         pair.files++
         if (pair.sample.length < 5) pair.sample.push(path)
         pairs.set(key, pair)

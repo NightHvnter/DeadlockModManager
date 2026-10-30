@@ -1,4 +1,5 @@
 import type { Language } from '../i18n'
+import type { AcceptedConflict } from './Installed'
 import type { InterfaceColors } from './InterfaceColors'
 
 /** Dimensioni del testo dell'app, in percentuale di quella normale. */
@@ -30,6 +31,8 @@ export interface Settings {
   highContrast: boolean
   /** Se `true` l'app controlla all'avvio se c'è una versione nuova e la scarica da sola. */
   autoUpdate: boolean
+  /** Conflitti tra mod che l'utente ha accettato, da non segnalare più. */
+  acceptedConflicts: AcceptedConflict[]
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -41,5 +44,6 @@ export const DEFAULT_SETTINGS: Settings = {
   textSize: 'normal',
   reduceMotion: false,
   highContrast: false,
-  autoUpdate: true
+  autoUpdate: true,
+  acceptedConflicts: []
 }

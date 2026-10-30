@@ -13,6 +13,7 @@ import type {
   IpcResult,
   LocalInstallResult,
   ModChangelogEntry,
+  AcceptedConflict,
   ModConflict,
   ModDownload,
   ModFilters,
@@ -75,6 +76,15 @@ const api = {
     ipcRenderer.invoke('profiles:apply', id),
   /** Mod attive che contengono gli stessi file, con quella che vince. */
   getConflicts: (): Promise<IpcResult<ModConflict[]>> => ipcRenderer.invoke('mods:conflicts'),
+  /**
+   * Accetta (o, con `accepted = false`, torna a segnalare) i conflitti tra le coppie di mod date;
+   * restituisce i conflitti aggiornati.
+   */
+  acceptConflicts: (
+    pairs: AcceptedConflict[],
+    accepted: boolean
+  ): Promise<IpcResult<ModConflict[]>> =>
+    ipcRenderer.invoke('mods:acceptConflicts', pairs, accepted),
   setLoadOrder: (modIds: string[]): Promise<IpcResult<InstalledMod[]>> =>
     ipcRenderer.invoke('mods:setLoadOrder', modIds),
   getCategories: (): Promise<string[]> => ipcRenderer.invoke('mods:categories'),
