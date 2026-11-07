@@ -2,23 +2,24 @@ import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { ModActionsContext } from '@/hooks/useModActions'
 import { useI18n } from '@/hooks/useI18n'
-import type { IpcResult } from '../../../../mission/types'
+import { installKey } from '../../../../mission/types'
+import type { InstalledFile, IpcResult } from '../../../../mission/types'
 
 /** Gestisce le operazioni sulle mod e il loro avanzamento per tutta l'app. */
 export function ModActionsProvider({ children }: { children: React.ReactNode }): React.JSX.Element {
-  const [installedIds, setInstalledIds] = useState<string[]>([])
+  const [installedFiles, setInstalledFiles] = useState<InstalledFile[]>([])
   const [busy, setBusy] = useState<Set<string>>(new Set())
   const [progress, setProgress] = useState<Record<string, number>>({})
   const [version, setVersion] = useState(0)
   const { t } = useI18n()
 
   const reload = useCallback(async () => {
-    setInstalledIds(await window.api.getInstalledMods())
+    setInstalledFiles(await window.api.getInstalledMods())
     setVersion((v) => v + 1)
   }, [])
 
   useEffect(() => {
-    window.api.getInstalledMods().then(setInstalledIds)
+    window.api.getInstalledMods().then(setInstalledFiles)
     return window.api.onInstallProgress(({ modId, received, total }) => {
       if (total > 0) setProgress((p) => ({ ...p, [modId]: Math.min(received / total, 1) }))
     })
@@ -56,12 +57,16 @@ export function ModActionsProvider({ children }: { children: React.ReactNode }):
   }
 
   const value = {
-    installedIds,
+    installedFiles,
     version,
     isBusy: (modId: string) => busy.has(modId),
     progress: (modId: string) => progress[modId],
     install: (modId: string, fileName?: string) =>
-      run(modId, () => window.api.installMod(modId, fileName), t('mod.installed')),
+      run(
+        installKey(modId, fileName),
+        () => window.api.installMod(modId, fileName),
+        t('mod.installed')
+      ),
     uninstall: (modId: string) =>
       run(modId, () => window.api.uninstallMod(modId), t('mod.uninstalled')),
     update: (modId: string) => run(modId, () => window.api.updateMod(modId), t('mod.updated')),

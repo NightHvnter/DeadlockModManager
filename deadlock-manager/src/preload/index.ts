@@ -3,6 +3,7 @@ import { electronAPI } from '@electron-toolkit/preload'
 import type {
   ApplyProfileResult,
   GameinfoStatus,
+  InstalledFile,
   InstalledMod,
   InstalledModInfo,
   InstallProgress,
@@ -51,7 +52,7 @@ const api = {
   /** Collega la mod esterna `localId` alla mod di GameBanana `modId`, di cui prende i dati. */
   linkMod: (localId: string, modId: string): Promise<IpcResult<InstalledMod>> =>
     ipcRenderer.invoke('mods:link', localId, modId),
-  getInstalledMods: (): Promise<string[]> => ipcRenderer.invoke('mods:installed'),
+  getInstalledMods: (): Promise<InstalledFile[]> => ipcRenderer.invoke('mods:installed'),
   getInstalledModsInfo: (): Promise<InstalledModInfo[]> => ipcRenderer.invoke('mods:installedInfo'),
   /** Mod attive dalla priorità più alta (`pak01`) alla più bassa. */
   getLoadOrder: (): Promise<InstalledMod[]> => ipcRenderer.invoke('mods:loadOrder'),

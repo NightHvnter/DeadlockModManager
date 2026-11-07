@@ -40,10 +40,14 @@ export interface ModDependency {
 }
 
 export interface ModDownload {
+  /** Id del file su GameBanana. */
+  id: number
   url: string
   size: number
   name: string
   md5Checksum: string | null
+  /** Data di pubblicazione del file: timestamp Unix in secondi. */
+  addedAt: number
   /** Descrizione del file scritta dall'autore (es. "versione senza effetti"), se c'è. */
   description?: string | null
 }

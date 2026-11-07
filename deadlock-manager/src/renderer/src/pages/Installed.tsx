@@ -22,6 +22,7 @@ import { useI18n } from '@/hooks/useI18n'
 import { useModActions } from '@/hooks/useModActions'
 import { useLocalInstall } from '@/hooks/useLocalInstall'
 import { useProfiles } from '@/hooks/useProfiles'
+import { baseModId } from '../../../mission/types'
 import type { InstalledModInfo, ModConflict } from '../../../mission/types'
 
 /** Stati per cui si possono filtrare le mod; il nome di ognuno è alla chiave `installed.show.<id>`. */
@@ -237,6 +238,10 @@ export default function Installed(): React.JSX.Element {
           {visible.map((mod) => {
             const busy = isBusy(mod.id)
             const p = progress(mod.id)
+            // con più file della stessa mod, il nome del file dice quale è questo
+            const several = mods.some(
+              (m) => m.id !== mod.id && baseModId(m.id) === baseModId(mod.id)
+            )
             return (
               <Card key={mod.id} className="flex-row items-center gap-4 p-3">
                 {mod.image ? (
@@ -260,6 +265,7 @@ export default function Installed(): React.JSX.Element {
                   </div>
                   <div className="text-sm text-muted-foreground">
                     {mod.external ? mod.files.join(', ') : mod.author}
+                    {several && mod.fileName && ` · ${mod.fileName}`}
                     {mod.installedAt &&
                       ` · ${t('installed.installedOn', { date: formatDate(mod.installedAt) })}`}
                   </div>

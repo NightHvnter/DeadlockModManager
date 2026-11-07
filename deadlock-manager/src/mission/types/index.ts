@@ -15,8 +15,10 @@ export {
   TEXT_SIZES,
   TEXT_SIZE_IDS
 } from './Settings'
+export { baseModId, installKey } from './Installed'
 export type {
   AcceptedConflict,
+  InstalledFile,
   InstalledMod,
   InstalledModInfo,
   InstallProgress,

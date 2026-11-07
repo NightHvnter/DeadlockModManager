@@ -11,6 +11,7 @@ import {
   ModChangelogEntry,
   ModDownload
 } from '../types'
+import { baseModId } from '../types'
 import { AppError } from '../i18n'
 
 import { createHash } from 'node:crypto'
@@ -56,6 +57,7 @@ import {
   MANAGER_ID,
   MANIFEST_FILENAME,
   appIdOf,
+  isAppModId,
   isPlainVpkName,
   originOf,
   readBundle,
@@ -79,6 +81,13 @@ export type ProgressCallback = (received: number, total: number) => void
 
 /** Mod del catalogo con l'id numerico di GameBanana `remoteId` (es. `"623518"`), se c'è. */
 export type ExternalLookup = (remoteId: string) => Mod | undefined
+
+/** VPK estratti da un archivio: percorsi relativi a `dir`, già divisi per formato. */
+interface ExtractedVpks {
+  dir: string
+  split: string[]
+  single: string[]
+}
 
 export class ManageMods {
   /** Coda delle operazioni: due installazioni insieme potrebbero scegliere lo stesso `pakNN`. */
@@ -109,6 +118,8 @@ export class ManageMods {
   /**
    * Scarica la mod fuori dalla coda delle operazioni, così un download lungo non blocca l'elenco
    * delle mod installate, l'ordine di caricamento o "Gioca"; poi la installa con `installArchive`.
+   * Un file scelto si aggiunge a quelli già installati della stessa mod, come voce a sé; senza
+   * `download` si installa il più recente, solo se della mod non c'è ancora niente.
    */
   private static async doInstall(
     mod: Mod,
@@ -116,45 +127,201 @@ export class ManageMods {
     download?: ModDownload,
     onProgress?: ProgressCallback
   ): Promise<string[]> {
-    if ((await readManifest())[mod.id]) throw new AppError('error.alreadyInstalled')
-
     const tmp = await mkdtemp(join(tmpdir(), 'deadlock-mod-'))
     try {
       const file = download ?? (await this.getDownloads(mod.id))[0]
       if (!file) throw new AppError('error.noDownloads')
+      const taken = (manifest: Record<string, InstalledMod>): boolean =>
+        Object.values(manifest).some(
+          (e) => baseModId(e.id) === mod.id && (!download || e.fileName === file.name)
+        )
+      if (taken(await readManifest())) throw new AppError('error.alreadyInstalled')
 
-      // 1. Download e verifica
-      const archive = join(tmp, basename(file.name))
-      await this.downloadFile(
-        file.url,
-        archive,
-        file.size,
-        onProgress,
-        filesServerUrl(mod.id, file.name)
-      )
-      if (file.md5Checksum && (await this.md5(archive)) !== file.md5Checksum.toLowerCase()) {
-        throw new AppError('error.checksum')
-      }
-
+      const archive = await this.fetchArchive(mod, file, tmp, onProgress)
       return await this.installArchive(archive, tmp, gamePath, (manifest) => {
         // durante il download potrebbe essere stata installata da un'altra richiesta
-        if (manifest[mod.id]) throw new AppError('error.alreadyInstalled')
-        return {
-          id: mod.id,
-          files: [],
-          enabled: true,
-          installedAt: new Date().toISOString(),
-          fileName: file.name,
-          name: mod.name,
-          author: mod.author,
-          category: mod.category,
-          hero: mod.hero,
-          image: mod.thumbnailUrl ?? mod.images[0] ?? null
-        }
+        if (taken(manifest)) throw new AppError('error.alreadyInstalled')
+        return this.catalogEntry(freeEntryId(manifest, mod.id, file), mod, file)
       })
     } finally {
       await rm(tmp, { recursive: true, force: true })
     }
+  }
+
+  /** Scarica `file` nella cartella temporanea `tmp` e ne verifica l'MD5. */
+  private static async fetchArchive(
+    mod: Mod,
+    file: ModDownload,
+    tmp: string,
+    onProgress?: ProgressCallback
+  ): Promise<string> {
+    const archive = join(tmp, basename(file.name))
+    await this.downloadFile(
+      file.url,
+      archive,
+      file.size,
+      onProgress,
+      filesServerUrl(mod.id, file.name)
+    )
+    if (file.md5Checksum && (await this.md5(archive)) !== file.md5Checksum.toLowerCase()) {
+      throw new AppError('error.checksum')
+    }
+    return archive
+  }
+
+  /**
+   * Voce `id` del manifest per il file `file` della mod di GameBanana `mod`, ancora senza VPK.
+   * Una voce in più porta il nome del file, per distinguerla ovunque si veda solo il nome.
+   */
+  private static catalogEntry(id: string, mod: Mod, file: ModDownload): InstalledMod {
+    return {
+      id,
+      files: [],
+      enabled: true,
+      installedAt: new Date().toISOString(),
+      fileName: file.name,
+      name: id === mod.id ? mod.name : `${mod.name} (${file.name})`,
+      author: mod.author,
+      category: mod.category,
+      hero: mod.hero,
+      image: mod.thumbnailUrl ?? mod.images[0] ?? null
+    }
+  }
+
+  /**
+   * Aggiorna la voce installata `entryId` della mod `mod` lasciandola al suo posto: resta attiva o disattivata e mantiene
+   * la posizione nell'ordine di caricamento. I file vecchi si toccano solo quando quelli nuovi
+   * sono scaricati, verificati ed estratti: se qualcosa fallisce la mod resta com'era.
+   */
+  public static async updateMod(
+    mod: Mod,
+    entryId: string,
+    gamePath: string,
+    onProgress?: ProgressCallback
+  ): Promise<string[]> {
+    const manifest = await readManifest()
+    const current = manifest[entryId]
+    if (!current) throw new AppError('error.notInstalled')
+    // un file già installato come altra voce della mod non è il suo aggiornamento
+    const others = new Set(
+      Object.values(manifest)
+        .filter((e) => e.id !== entryId && baseModId(e.id) === mod.id)
+        .map((e) => e.fileName)
+    )
+
+    const tmp = await mkdtemp(join(tmpdir(), 'deadlock-mod-'))
+    try {
+      const downloads = await this.getDownloads(mod.id)
+      const file = pickUpdateFile(
+        downloads.filter((f) => !others.has(f.name)),
+        current
+      )
+      if (!file) throw new AppError('error.noDownloads')
+      const archive = await this.fetchArchive(mod, file, tmp, onProgress)
+      const vpks = await this.extractVpks(archive, tmp)
+      return await this.exclusive(async () => {
+        // durante il download la mod può essere stata disattivata o disinstallata
+        const manifest = await readManifest()
+        const entry = manifest[entryId]
+        if (!entry) throw new AppError('error.notInstalled')
+        const item = { ...this.catalogEntry(entryId, mod, file), enabled: entry.enabled }
+        return entry.enabled
+          ? this.replaceEnabled(manifest, entry, item, vpks, gamePath)
+          : this.replaceDisabled(manifest, entry, item, vpks)
+      })
+    } finally {
+      await rm(tmp, { recursive: true, force: true })
+    }
+  }
+
+  /**
+   * Sostituisce i file di una mod attiva. I file nuovi entrano in `addons` prima di togliere i
+   * vecchi, messi da parte con una rinomina finché il manifest non è salvato: fino a quel momento
+   * si può sempre tornare indietro. Alla fine la mod riprende il suo posto nell'ordine.
+   */
+  private static async replaceEnabled(
+    manifest: Record<string, InstalledMod>,
+    entry: InstalledMod,
+    item: InstalledMod,
+    vpks: ExtractedVpks,
+    gamePath: string
+  ): Promise<string[]> {
+    const citadel = join(gamePath, 'game', 'citadel')
+    const addons = join(citadel, 'addons')
+    const order = (await this.getLoadOrder()).map((e) => e.id)
+    const aside = (f: string): string => `__dmm_update_${f}`
+    const placed: string[] = []
+    const moved: string[] = []
+    try {
+      await mkdir(addons, { recursive: true })
+      // i file già spariti da addons non impediscono l'aggiornamento: anzi, lo riparano. Si
+      // guarda prima di copiare, perché un file nuovo può prendere il nome di uno sparito
+      const present = await readdir(addons)
+      const old = entry.files.filter((f) => present.includes(f))
+      await this.placeExtracted(vpks, addons, placed)
+      await this.ensureAddonsSearchPath(citadel)
+      for (const f of old) {
+        await rename(join(addons, f), join(addons, aside(f)))
+        moved.push(f)
+      }
+      manifest[item.id] = { ...item, files: placed }
+      await writeManifest(manifest)
+    } catch (e) {
+      await Promise.all(placed.map((f) => rm(join(addons, f), { force: true })))
+      for (const f of moved) await rename(join(addons, aside(f)), join(addons, f)).catch(() => {})
+      throw e
+    }
+
+    // da qui l'aggiornamento è riuscito: un errore non deve farlo sembrare fallito
+    await Promise.all(moved.map((f) => rm(join(addons, aside(f)), { force: true }))).catch((e) =>
+      console.error('[update]', e)
+    )
+    await this.applyLoadOrder(manifest, order, addons).catch((e) => console.error('[update]', e))
+    return manifest[item.id].files
+  }
+
+  /**
+   * Sostituisce i file di una mod disattivata, che restano fuori da `addons`: i nuovi vanno nella
+   * cartella delle mod disattivate dell'app, anche se prima li custodiva un altro manager.
+   */
+  private static async replaceDisabled(
+    manifest: Record<string, InstalledMod>,
+    entry: InstalledMod,
+    item: InstalledMod,
+    vpks: ExtractedVpks
+  ): Promise<string[]> {
+    const target = disabledDir(item.id)
+    const stage = `${target}.new`
+    const old = `${target}.old`
+    const placed: string[] = []
+    let moved = false
+    await rm(stage, { recursive: true, force: true })
+    await rm(old, { recursive: true, force: true })
+    try {
+      await mkdir(stage, { recursive: true })
+      await this.placeExtracted(vpks, stage, placed)
+      await rename(target, old).then(
+        () => (moved = true),
+        (e: NodeJS.ErrnoException) => {
+          if (e.code !== 'ENOENT') throw e
+        }
+      )
+      await rename(stage, target)
+      manifest[item.id] = { ...item, files: placed }
+      await writeManifest(manifest)
+    } catch (e) {
+      await rm(stage, { recursive: true, force: true })
+      if (moved) {
+        await rm(target, { recursive: true, force: true })
+        await rename(old, target).catch(() => {})
+      }
+      throw e
+    }
+
+    await rm(old, { recursive: true, force: true })
+    if (entry.parkedIn)
+      await Promise.all(entry.files.map((f) => rm(join(entry.parkedIn!, f), { force: true })))
+    return placed
   }
 
   /**
@@ -220,45 +387,16 @@ export class ManageMods {
     const citadel = join(gamePath, 'game', 'citadel')
     const addons = join(citadel, 'addons')
     const installed: string[] = []
-
-    // 2. Estrazione
-    const extracted = join(tmp, 'extracted')
-    await mkdir(extracted)
-    const ext = extname(archive).toLowerCase()
-    if (ext === '.zip') await extract(archive, extracted)
-    else if (ext === '.rar') await extractRar(archive, extracted)
-    else if (ext === '.vpk') await copyFile(archive, join(extracted, basename(archive)))
-    else throw new AppError('error.unsupportedFormat', { ext })
-
-    // 3. Copia dei VPK in addons con il prefisso pakNN. Due formati:
-    //    - VPK diviso: `<nome>_dir.vpk` più le parti `<nome>_000.vpk`, `<nome>_001.vpk`, ...
-    //    - VPK a file unico: `<nome>.vpk`, che il gioco carica rinominato `pakNN_dir.vpk`
-    const all = (await readdir(extracted, { recursive: true })).filter((f) =>
-      f.toLowerCase().endsWith('.vpk')
-    )
-    const split = all.filter((f) => f.toLowerCase().endsWith('_dir.vpk'))
-    const single = all.filter(
-      (f) => !f.toLowerCase().endsWith('_dir.vpk') && !/_\d{3}\.vpk$/i.test(f)
-    )
-    if (split.length + single.length === 0) throw new AppError('error.noVpk')
+    const vpks = await this.extractVpks(archive, tmp)
 
     try {
       return await this.exclusive(async () => {
         const manifest = await readManifest()
         const item = entry(manifest)
         await mkdir(addons, { recursive: true })
-        for (const rel of split) {
-          const dir = join(extracted, dirname(rel))
-          const base = basename(rel).slice(0, -'_dir.vpk'.length)
-          await this.placeVpkGroup(dir, base, addons, installed)
-        }
-        for (const rel of single) {
-          const target = `pak${await this.nextFreeIndex(addons)}_dir.vpk`
-          await copyFile(join(extracted, rel), join(addons, target))
-          installed.push(target)
-        }
+        await this.placeExtracted(vpks, addons, installed)
 
-        // 4. Abilita la cartella addons nel gioco
+        // Abilita la cartella addons nel gioco
         await this.ensureAddonsSearchPath(citadel)
 
         manifest[item.id] = { ...item, files: installed }
@@ -269,6 +407,49 @@ export class ManageMods {
       // non lascia in addons i file di un'installazione a metà
       await Promise.all(installed.map((f) => rm(join(addons, f), { force: true })))
       throw e
+    }
+  }
+
+  /**
+   * Estrae `archive` (`.zip`, `.rar` o `.vpk`) nella cartella temporanea `tmp` e ne elenca i VPK.
+   * Due formati:
+   * - VPK diviso: `<nome>_dir.vpk` più le parti `<nome>_000.vpk`, `<nome>_001.vpk`, ...
+   * - VPK a file unico: `<nome>.vpk`, che il gioco carica rinominato `pakNN_dir.vpk`
+   */
+  private static async extractVpks(archive: string, tmp: string): Promise<ExtractedVpks> {
+    const dir = join(tmp, 'extracted')
+    await mkdir(dir)
+    const ext = extname(archive).toLowerCase()
+    if (ext === '.zip') await extract(archive, dir)
+    else if (ext === '.rar') await extractRar(archive, dir)
+    else if (ext === '.vpk') await copyFile(archive, join(dir, basename(archive)))
+    else throw new AppError('error.unsupportedFormat', { ext })
+
+    const all = (await readdir(dir, { recursive: true })).filter((f) =>
+      f.toLowerCase().endsWith('.vpk')
+    )
+    const split = all.filter((f) => f.toLowerCase().endsWith('_dir.vpk'))
+    const single = all.filter(
+      (f) => !f.toLowerCase().endsWith('_dir.vpk') && !/_\d{3}\.vpk$/i.test(f)
+    )
+    if (split.length + single.length === 0) throw new AppError('error.noVpk')
+    return { dir, split, single }
+  }
+
+  /** Copia i VPK estratti in `target` con il prefisso `pakNN`, aggiungendo i nomi a `placed`. */
+  private static async placeExtracted(
+    { dir, split, single }: ExtractedVpks,
+    target: string,
+    placed: string[]
+  ): Promise<void> {
+    for (const rel of split) {
+      const base = basename(rel).slice(0, -'_dir.vpk'.length)
+      await this.placeVpkGroup(join(dir, dirname(rel)), base, target, placed)
+    }
+    for (const rel of single) {
+      const name = `pak${await this.nextFreeIndex(target)}_dir.vpk`
+      await copyFile(join(dir, rel), join(target, name))
+      placed.push(name)
     }
   }
 
@@ -327,10 +508,12 @@ export class ManageMods {
       .filter((f) => !f._bIsArchived)
       .sort((a, b) => b._tsDateAdded - a._tsDateAdded)
       .map((f) => ({
+        id: f._idRow,
         url: f._sDownloadUrl,
         size: f._nFilesize,
         name: f._sFile,
         md5Checksum: f._sMd5Checksum || null,
+        addedAt: f._tsDateAdded,
         description: f._sDescription || null
       }))
   }
@@ -858,7 +1041,7 @@ export class ManageMods {
           }
 
           const { key, origin } = originOf(entry.id, entry.fileName)
-          const remote = /^(Mod|Sound)-(\d+)$/.exec(entry.id)
+          const remote = /^(Mod|Sound)-(\d+)$/.exec(baseModId(entry.id))
           document.mods.push({
             key,
             name: entry.name,
@@ -914,8 +1097,11 @@ export class ManageMods {
       for (const item of [...document.mods].sort((a, b) => a.order - b.order)) {
         const remoteId = appIdOf(item.origin)
         const own = item.extensions?.[MANAGER_ID] as { modId?: unknown } | undefined
-        const ownId = typeof own?.modId === 'string' ? own.modId : null
-        if ((remoteId && manifest[remoteId]) || (!remoteId && ownId && manifest[ownId])) {
+        const ownModId = own?.modId
+        const ownId = isAppModId(ownModId) ? ownModId : null
+        // un file in più di una mod di GameBanana riprende la sua voce, accanto a quella della mod
+        const appId = remoteId && ownId && baseModId(ownId) === remoteId ? ownId : remoteId
+        if ((appId && manifest[appId]) || (!appId && ownId && manifest[ownId])) {
           result.skipped.push({ name: item.name, reason: 'alreadyInstalled' })
           continue
         }
@@ -942,7 +1128,7 @@ export class ManageMods {
           continue
         }
 
-        let id = remoteId ?? ownId ?? `Local-${slugify(item.name, 40)}`
+        let id = appId ?? ownId ?? `Local-${slugify(item.name, 40)}`
         for (let n = 2; manifest[id]; n++)
           id = `${remoteId ?? `Local-${slugify(item.name, 40)}`}-${n}`
 
@@ -967,7 +1153,7 @@ export class ManageMods {
             installedAt: new Date().toISOString(),
             fileName:
               item.origin.provider === 'gamebanana' ? (item.origin.fileName ?? names[0]) : names[0],
-            name: mod?.name ?? item.name,
+            name: (appId === remoteId ? mod?.name : null) ?? item.name,
             author: mod?.author ?? item.author ?? '',
             category: mod?.category ?? item.category ?? '',
             hero: mod?.hero ?? item.hero ?? null,
@@ -1065,61 +1251,93 @@ export class ManageMods {
       )
         throw new AppError('error.loadOrderChanged')
 
-      const addons = join(gamePath, 'game', 'citadel', 'addons')
-      const managed = new Set(enabled.flatMap((e) => e.files))
-      const takenByOthers = new Set(
-        (await readdir(addons).catch(() => []))
-          .filter((f) => !managed.has(f))
-          .map((f) => /^pak(\d{2})_/.exec(f)?.[1])
-          .filter(Boolean)
-      )
-      const free = Array.from({ length: 99 }, (_, i) => String(i + 1).padStart(2, '0')).filter(
-        (n) => !takenByOthers.has(n)
-      )
-
-      // nuovo nome di ogni file: ogni gruppo pakNN di ogni mod riceve il prossimo indice libero
-      const renames: { from: string; to: string }[] = []
-      const newFiles = new Map<string, string[]>()
-      for (const id of modIds) {
-        const files = manifest[id].files
-        const prefixes = [...new Set(files.map((f) => /^(pak\d{2})_/.exec(f)?.[1]))]
-          .filter((p): p is string => !!p)
-          .sort()
-        const renamed: string[] = []
-        for (const prefix of prefixes) {
-          const index = free.shift()
-          if (!index) throw new AppError('error.noFreeIndex')
-          for (const f of files.filter((f) => f.startsWith(`${prefix}_`))) {
-            const to = `pak${index}${f.slice(prefix.length)}`
-            renamed.push(to)
-            if (to !== f) renames.push({ from: f, to })
-          }
-        }
-        newFiles.set(id, renamed)
-      }
-
-      const tmp = (f: string): string => `__dmm_reorder_${f}`
-      const done: { from: string; to: string }[] = []
-      try {
-        for (const r of renames) {
-          await rename(join(addons, r.from), join(addons, tmp(r.from)))
-          done.push({ from: r.from, to: tmp(r.from) })
-        }
-        for (const r of renames) {
-          await rename(join(addons, tmp(r.from)), join(addons, r.to))
-          done.push({ from: tmp(r.from), to: r.to })
-        }
-      } catch (e) {
-        for (const r of done.reverse())
-          await rename(join(addons, r.to), join(addons, r.from)).catch(() => {})
-        throw e
-      }
-
-      for (const [id, files] of newFiles) manifest[id].files = files
-      await writeManifest(manifest)
+      await this.applyLoadOrder(manifest, modIds, join(gamePath, 'game', 'citadel', 'addons'))
       return modIds.map((id) => manifest[id])
     })
   }
+
+  /** Rinomina i file delle mod attive `modIds` secondo il loro ordine e salva il manifest. */
+  private static async applyLoadOrder(
+    manifest: Record<string, InstalledMod>,
+    modIds: string[],
+    addons: string
+  ): Promise<void> {
+    const managed = new Set(modIds.flatMap((id) => manifest[id].files))
+    const takenByOthers = new Set(
+      (await readdir(addons).catch(() => []))
+        .filter((f) => !managed.has(f))
+        .map((f) => /^pak(\d{2})_/.exec(f)?.[1])
+        .filter(Boolean)
+    )
+    const free = Array.from({ length: 99 }, (_, i) => String(i + 1).padStart(2, '0')).filter(
+      (n) => !takenByOthers.has(n)
+    )
+
+    // nuovo nome di ogni file: ogni gruppo pakNN di ogni mod riceve il prossimo indice libero
+    const renames: { from: string; to: string }[] = []
+    const newFiles = new Map<string, string[]>()
+    for (const id of modIds) {
+      const files = manifest[id].files
+      const prefixes = [...new Set(files.map((f) => /^(pak\d{2})_/.exec(f)?.[1]))]
+        .filter((p): p is string => !!p)
+        .sort()
+      const renamed: string[] = []
+      for (const prefix of prefixes) {
+        const index = free.shift()
+        if (!index) throw new AppError('error.noFreeIndex')
+        for (const f of files.filter((f) => f.startsWith(`${prefix}_`))) {
+          const to = `pak${index}${f.slice(prefix.length)}`
+          renamed.push(to)
+          if (to !== f) renames.push({ from: f, to })
+        }
+      }
+      newFiles.set(id, renamed)
+    }
+
+    const tmp = (f: string): string => `__dmm_reorder_${f}`
+    const done: { from: string; to: string }[] = []
+    try {
+      for (const r of renames) {
+        await rename(join(addons, r.from), join(addons, tmp(r.from)))
+        done.push({ from: r.from, to: tmp(r.from) })
+      }
+      for (const r of renames) {
+        await rename(join(addons, tmp(r.from)), join(addons, r.to))
+        done.push({ from: tmp(r.from), to: r.to })
+      }
+    } catch (e) {
+      for (const r of done.reverse())
+        await rename(join(addons, r.to), join(addons, r.from)).catch(() => {})
+      throw e
+    }
+
+    for (const [id, files] of newFiles) manifest[id].files = files
+    await writeManifest(manifest)
+  }
+}
+
+/** Primo id libero per un file della mod `modId`: quello della mod, poi quello con il file. */
+function freeEntryId(
+  manifest: Record<string, InstalledMod>,
+  modId: string,
+  file: ModDownload
+): string {
+  let id = modId
+  for (let n = 1; manifest[id]; n++) id = `${modId}.${file.id}${n > 1 ? `-${n}` : ''}`
+  return id
+}
+
+/**
+ * File da scaricare per aggiornare una mod: quello installato finché è ancora l'ultima parola
+ * dell'autore, così una variante scelta a mano non diventa un'altra; altrimenti il più recente.
+ * Conta come tale se è stato ripubblicato dopo l'installazione o se non è uscito nessun file nuovo.
+ * @param files File disponibili, dal più recente
+ */
+function pickUpdateFile(files: ModDownload[], entry: InstalledMod): ModDownload | undefined {
+  const installedAt = Date.parse(entry.installedAt ?? '') || 0
+  const newer = files.filter((f) => f.addedAt * 1000 > installedAt)
+  const same = files.find((f) => f.name === entry.fileName)
+  return same && (newer.length === 0 || newer.includes(same)) ? same : files[0]
 }
 
 /** Indice `pakNN` più basso tra i file di una mod; `100` se nessun file ha quel formato. */

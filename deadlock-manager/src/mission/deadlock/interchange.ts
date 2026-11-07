@@ -4,6 +4,7 @@ import { readFile, stat } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, join, normalize, relative, sep } from 'node:path'
 import { pipeline } from 'node:stream/promises'
 import { AppError } from '../i18n'
+import { baseModId } from '../types'
 
 /**
  * Formato "Deadlock Mod Interchange" del Deadlock Mod Manager ufficiale
@@ -75,11 +76,13 @@ export function originOf(
   modId: string,
   fileName: string | null
 ): { key: string; origin: InterchangeOrigin } {
-  const remote = /^(Mod|Sound)-(\d+)$/.exec(modId)
+  const base = baseModId(modId)
+  const remote = /^(Mod|Sound)-(\d+)$/.exec(base)
   if (!remote) return { key: `local:${modId}`, origin: { provider: 'local', localId: modId } }
   const type = remote[1] === 'Sound' ? 'sound' : 'mod'
   return {
-    key: `gamebanana:${type}:${remote[2]}`,
+    // i file di una stessa mod sono voci diverse: la chiave deve distinguerli
+    key: `gamebanana:${type}:${remote[2]}${modId.slice(base.length).replace('.', ':')}`,
     origin: {
       provider: 'gamebanana',
       submissionType: type,
@@ -156,6 +159,14 @@ export function resolveBundlePath(base: string, relativePath: string): string | 
   if (!rel || rel.startsWith('..') || isAbsolute(rel)) return null
   return resolved
 }
+
+/**
+ * `true` per un id di mod dell'app (`Mod-123`, `Local-nome`). Quello letto da un pacchetto non è
+ * affidabile e diventa il nome di una cartella che poi viene cancellata: non deve contenere
+ * separatori di percorso né coincidere con una proprietà degli oggetti (`__proto__`).
+ */
+export const isAppModId = (id: unknown): id is string =>
+  typeof id === 'string' && /^(?:Mod|Sound|Local)-[\w.-]+$/.test(id)
 
 /** Nome sicuro per un VPK: un solo componente che finisce in `.vpk`, senza caratteri vietati. */
 export const isPlainVpkName = (name: string): boolean =>

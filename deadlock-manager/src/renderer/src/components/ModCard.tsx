@@ -64,7 +64,7 @@ export default function ModCard({ mod, onOpen }: ModCardProps): React.JSX.Elemen
             {formatNumber(mod.likes)}
           </span>
         </span>
-        <InstallButton mod={mod} />
+        <InstallButton mod={mod} onManage={onOpen} />
       </CardFooter>
     </Card>
   )

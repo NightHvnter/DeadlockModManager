@@ -1,12 +1,13 @@
 import { createContext, useContext } from 'react'
+import type { InstalledFile } from '../../../mission/types'
 
 export interface ModActionsContextValue {
-  /** Id delle mod installate. */
-  installedIds: string[]
-  /** `true` se sulla mod è in corso un'operazione. */
-  isBusy: (modId: string) => boolean
+  /** File installati, uno per voce del manifest. */
+  installedFiles: InstalledFile[]
+  /** `true` se sulla voce (o sull'`installKey`) è in corso un'operazione. */
+  isBusy: (key: string) => boolean
   /** Avanzamento del download (0-1), `undefined` se non è in corso o la dimensione è ignota. */
-  progress: (modId: string) => number | undefined
+  progress: (key: string) => number | undefined
   install: (modId: string, fileName?: string) => Promise<boolean>
   uninstall: (modId: string) => Promise<boolean>
   update: (modId: string) => Promise<boolean>

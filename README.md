@@ -17,7 +17,7 @@ the app → **Open**).
 ## Features
 
 - Mod list with search, filters by category, hero and type (visual, audio, maps) and sorting
-- Mod details: image gallery, description, audio preview, update history and choice of the file to download
+- Mod details: image gallery, description, audio preview, update history and the mod's files, each with its own install button: several files of a mod can be installed together
 - Installation from `.zip`, `.rar` or `.vpk` files, with MD5 verification and download progress
 - **Installed** page: enable/disable, update and uninstall mods, and change their load order
 - **Profiles**: sets of enabled mods with their load order, to switch between them in one click
@@ -49,6 +49,11 @@ register it in `LANGUAGES` and `MESSAGES` in `src/mission/i18n/index.ts`.
    (the original file is saved as `gameinfo.gi.bak`).
 4. The installed files are recorded in `installed.json` in the app's data folder.
    Disabled mods are moved to `disabled/<id>` in the same folder.
+
+Each file installed from a mod is a separate entry, so it can be enabled, reordered, updated and
+uninstalled on its own: the first one uses the mod's id (`Mod-123`), the others add the file's id
+(`Mod-123.456`) and show the file name after the mod's name. Installing two variants of the same
+mod usually makes them conflict, and the load order decides which one the game uses.
 
 ## Game updates and `gameinfo.gi`
 
