@@ -1,15 +1,24 @@
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { app } from 'electron'
 import { readFile, stat, writeFile } from 'node:fs/promises'
-import type { InstalledMod } from '../types'
+import { AppError } from '../i18n'
+import type { InstalledFile, InstalledMod } from '../types'
 
 type Manifest = Record<string, InstalledMod>
 
 const manifestPath = (): string => join(app.getPath('userData'), 'installed.json')
 
-/** Cartella in cui finiscono i file delle mod disattivate (una sottocartella per mod). */
-export const disabledDir = (modId: string): string =>
-  join(app.getPath('userData'), 'disabled', modId)
+/**
+ * Cartella in cui finiscono i file delle mod disattivate (una sottocartella per mod). Queste
+ * cartelle si cancellano ricorsivamente, quindi un id che ne uscirebbe viene rifiutato.
+ * @throws Se `modId` non è un solo componente di percorso
+ */
+export function disabledDir(modId: string): string {
+  const root = join(app.getPath('userData'), 'disabled')
+  const dir = join(root, modId)
+  if (dirname(dir) !== root) throw new AppError('error.invalidPath', { path: modId })
+  return dir
+}
 
 /**
  * Campi del formato `{ format, version, savedAt, gamePath, mods }` usato da una versione di
@@ -92,9 +101,9 @@ export async function writeManifest(manifest: Manifest): Promise<void> {
   await writeFile(manifestPath(), JSON.stringify(manifest, null, 2))
 }
 
-/** Id delle mod installate, utile per mostrare "Installata" nell'interfaccia. */
-export async function getInstalledModIds(): Promise<string[]> {
-  return Object.keys(await readManifest())
+/** File installati, utile per mostrare "Installata" nell'interfaccia. */
+export async function getInstalledFiles(): Promise<InstalledFile[]> {
+  return Object.values(await readManifest()).map(({ id, fileName }) => ({ id, fileName }))
 }
 
 /** Mod installate, dalla più recente. */

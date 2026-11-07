@@ -6,7 +6,7 @@ import { checkForUpdates, getUpdateStatus, initUpdater, installUpdate } from './
 import { GameBananaCatalog, INCREMENTAL_INTERVAL_MS } from '../mission/gamebanana'
 import {
   ManageMods,
-  getInstalledModIds,
+  getInstalledFiles,
   getInstalledMods,
   applyProfile,
   createProfile,
@@ -34,6 +34,7 @@ import type {
   ModFilters,
   Settings
 } from '../mission/types'
+import { baseModId, installKey } from '../mission/types'
 import { AppError, describeError, detectLanguage, translate, type Language } from '../mission/i18n'
 
 /** Catalogo delle mod di GameBanana, `undefined` finché il primo caricamento non è finito. */
@@ -120,7 +121,7 @@ async function installedWithInfo(): Promise<InstalledModInfo[]> {
     if (entry.external) return { ...entry, available: true, updateAvailable: false }
     // finché l'elenco non è caricato non si può sapere se ci sono aggiornamenti
     if (!catalog) return { ...entry, available: true, updateAvailable: false }
-    const mod = catalog.getById(entry.id)
+    const mod = catalog.getById(baseModId(entry.id))
     const updatedAt = mod?.filesUpdatedAt ?? mod?.remoteUpdatedAt
     return {
       ...entry,
@@ -160,18 +161,17 @@ function registerIpc(): void {
         : undefined
       if (fileName && !download) throw new AppError('error.fileNotFound')
       return ManageMods.installMod(mod, gamePath, download, (received, total) => {
-        const progress: InstallProgress = { modId, received, total }
+        const progress: InstallProgress = { modId: installKey(modId, fileName), received, total }
         if (!event.sender.isDestroyed()) event.sender.send('mods:progress', progress)
       })
     })
   )
   ipcMain.handle('mods:update', (event, modId: string) =>
     toResult(async () => {
-      const mod = (await catalogReady).getById(modId)
+      const mod = (await catalogReady).getById(baseModId(modId))
       if (!mod) throw new AppError('error.modUnavailable')
       const gamePath = await requireGamePath()
-      await ManageMods.uninstallMod(modId, gamePath)
-      return ManageMods.installMod(mod, gamePath, undefined, (received, total) => {
+      return ManageMods.updateMod(mod, modId, gamePath, (received, total) => {
         const progress: InstallProgress = { modId, received, total }
         if (!event.sender.isDestroyed()) event.sender.send('mods:progress', progress)
       })
@@ -193,7 +193,7 @@ function registerIpc(): void {
       return ManageMods.linkMod(localId, mod)
     })
   )
-  ipcMain.handle('mods:installed', () => getInstalledModIds())
+  ipcMain.handle('mods:installed', () => getInstalledFiles())
   ipcMain.handle('mods:installedInfo', () => installedWithInfo())
   ipcMain.handle('mods:loadOrder', async () => {
     await syncExternalMods()

@@ -9,17 +9,12 @@ import {
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select'
 import { useI18n } from '@/hooks/useI18n'
+import { useModActions } from '@/hooks/useModActions'
 import { sanitizeHtml } from '@/lib/sanitizeHtml'
 import { cn } from '@/lib/utils'
 import InstallButton from './InstallButton'
+import { baseModId } from '../../../mission/types'
 import type { Mod, ModChangelogEntry, ModDownload } from '../../../mission/types'
 
 /** Dimensione leggibile di un file. */
@@ -48,11 +43,35 @@ export default function ModDetailsDialog({
   )
 }
 
+/** Riga di un file della mod: nome, dettagli e il suo pulsante. */
+function FileRow({
+  name,
+  detail,
+  children
+}: {
+  name: string
+  detail: string
+  children: React.ReactNode
+}): React.JSX.Element {
+  return (
+    <li className="flex items-center gap-3">
+      <div className="min-w-0 flex-1">
+        <div className="truncate" title={name}>
+          {name}
+        </div>
+        <div className="truncate text-sm text-muted-foreground" title={detail}>
+          {detail}
+        </div>
+      </div>
+      {children}
+    </li>
+  )
+}
+
 function Details({ mod }: { mod: Mod }): React.JSX.Element {
   const [index, setIndex] = useState(0)
   const [downloads, setDownloads] = useState<ModDownload[] | null>(null)
   const [downloadsError, setDownloadsError] = useState<string | null>(null)
-  const [fileName, setFileName] = useState<string | undefined>()
   const { t, formatNumber, formatDate } = useI18n()
   const description = useMemo(
     () => (mod.description ? sanitizeHtml(mod.description) : ''),
@@ -65,7 +84,6 @@ function Details({ mod }: { mod: Mod }): React.JSX.Element {
     window.api.getDownloads(mod.id).then((result) => {
       if (!result.ok) return setDownloadsError(result.error)
       setDownloads(result.data)
-      setFileName(result.data[0]?.name)
     })
     // il changelog è facoltativo: se non arriva la sezione semplicemente non compare
     window.api.getChangelog(mod.id).then((result) => result.ok && setChangelog(result.data))
@@ -73,6 +91,14 @@ function Details({ mod }: { mod: Mod }): React.JSX.Element {
 
   const images = mod.images
   const image = images[index]
+
+  // file installati che la pagina della mod non elenca più (sostituiti dall'autore o collegati)
+  const { installedFiles } = useModActions()
+  const unlisted = downloads
+    ? installedFiles.filter(
+        (f) => baseModId(f.id) === mod.id && !downloads.some((d) => d.name === f.fileName)
+      )
+    : []
 
   return (
     <>
@@ -214,44 +240,44 @@ function Details({ mod }: { mod: Mod }): React.JSX.Element {
         </details>
       )}
 
-      <div className="flex flex-wrap items-center gap-2 border-t pt-4">
-        {downloadsError ? (
-          <span className="text-destructive">{downloadsError}</span>
-        ) : downloads && downloads.length > 1 ? (
-          <Select value={fileName} onValueChange={(v) => v && setFileName(v)}>
-            <SelectTrigger className="max-w-sm">
-              <SelectValue>{fileName}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {downloads.map((d) => (
-                <SelectItem key={d.name} value={d.name}>
-                  {d.name} ({formatSize(d.size)})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : downloads?.[0] ? (
-          <span className="text-muted-foreground">
-            {downloads[0].name} ({formatSize(downloads[0].size)})
-          </span>
-        ) : downloads ? (
-          <span className="text-muted-foreground">{t('details.noFiles')}</span>
-        ) : (
-          <span className="text-muted-foreground">{t('details.loadingFiles')}</span>
-        )}
-
-        <div className="ml-auto flex gap-2">
+      <div className="space-y-2 border-t pt-4">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="font-medium">{t('details.files')}</h3>
           <a
             href={mod.remoteUrl}
             target="_blank"
             rel="noreferrer"
-            className={buttonVariants({ variant: 'ghost' })}
+            className={buttonVariants({ variant: 'ghost', size: 'sm' })}
           >
             <ExternalLink className="size-4" />
             GameBanana
           </a>
-          <InstallButton mod={mod} fileName={fileName} size="default" />
         </div>
+
+        {downloadsError ? (
+          <p className="text-destructive">{downloadsError}</p>
+        ) : !downloads ? (
+          <p className="text-muted-foreground">{t('details.loadingFiles')}</p>
+        ) : downloads.length + unlisted.length === 0 ? (
+          <p className="text-muted-foreground">{t('details.noFiles')}</p>
+        ) : (
+          <ul className="grid gap-2">
+            {downloads.map((d) => (
+              <FileRow
+                key={d.name}
+                name={d.name}
+                detail={[formatSize(d.size), d.description].filter(Boolean).join(' · ')}
+              >
+                <InstallButton mod={mod} fileName={d.name} />
+              </FileRow>
+            ))}
+            {unlisted.map((f) => (
+              <FileRow key={f.id} name={f.fileName ?? f.id} detail={t('details.notListed')}>
+                <InstallButton mod={mod} entryId={f.id} />
+              </FileRow>
+            ))}
+          </ul>
+        )}
       </div>
     </>
   )

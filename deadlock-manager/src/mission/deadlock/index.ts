@@ -7,4 +7,4 @@ export {
   renameProfile,
   syncActiveProfile
 } from './profiles'
-export { getInstalledModIds, getInstalledMods, readManifest, writeManifest } from './manifest'
+export { getInstalledFiles, getInstalledMods, readManifest, writeManifest } from './manifest'

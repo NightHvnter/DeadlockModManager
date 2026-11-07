@@ -1,4 +1,8 @@
-/** Mod installata, come salvata nel manifest. */
+/**
+ * Mod installata, come salvata nel manifest. Ogni file installato di una mod di GameBanana ha la
+ * sua voce, così si attiva, si ordina e si aggiorna da solo: il primo usa l'id della mod
+ * (`Mod-123`), gli altri quello con l'id del file (`Mod-123.456`, vedi `baseModId`).
+ */
 export interface InstalledMod {
   id: string
   /** File presenti in `addons` (o nella cartella delle mod disattivate se `enabled` è `false`). */
@@ -28,6 +32,16 @@ export interface InstalledMod {
   parkedIn?: string
 }
 
+/** Id della mod del catalogo a cui appartiene la voce installata `id`. */
+export const baseModId = (id: string): string => id.replace(/^((?:Mod|Sound)-\d+)\.[\d-]+$/, '$1')
+
+/** Chiave di un'installazione in corso, per il suo stato e il suo avanzamento. */
+export const installKey = (modId: string, fileName?: string): string =>
+  fileName ? `${modId}/${fileName}` : modId
+
+/** Voce installata e file da cui viene, per mostrare quali file di una mod sono installati. */
+export type InstalledFile = Pick<InstalledMod, 'id' | 'fileName'>
+
 /** Mod installata con le informazioni ricavate dal catalogo. */
 export interface InstalledModInfo extends InstalledMod {
   /** `true` se i file della mod sono stati aggiornati dopo l'installazione. */
@@ -38,6 +52,7 @@ export interface InstalledModInfo extends InstalledMod {
 
 /** Avanzamento dello scaricamento di una mod, inviato al renderer su `mods:progress`. */
 export interface InstallProgress {
+  /** Voce aggiornata, o `installKey` del file che si sta installando. */
   modId: string
   /** Byte ricevuti. */
   received: number
