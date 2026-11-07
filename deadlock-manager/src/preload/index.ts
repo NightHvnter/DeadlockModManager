@@ -104,6 +104,7 @@ const api = {
   browseGamePath: (): Promise<IpcResult<Settings | null>> =>
     ipcRenderer.invoke('settings:browseGamePath'),
   openAddonsFolder: (): Promise<IpcResult<null>> => ipcRenderer.invoke('settings:openAddons'),
+  openLogsFolder: (): Promise<IpcResult<null>> => ipcRenderer.invoke('settings:openLogs'),
 
   /** Salva i colori dell'interfaccia e rigenera il loro VPK in `addons` (lo toglie se sono tutti originali). */
   applyInterfaceColors: (colors: InterfaceColors): Promise<IpcResult<InterfaceColorsResult>> =>

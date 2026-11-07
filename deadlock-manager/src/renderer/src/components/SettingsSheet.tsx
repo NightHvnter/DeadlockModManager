@@ -131,6 +131,11 @@ export default function SettingsSheet(): React.JSX.Element {
     }
   }
 
+  async function openLogs(): Promise<void> {
+    const result = await window.api.openLogsFolder()
+    if (!result.ok) toast.error(result.error)
+  }
+
   async function openAddons(): Promise<void> {
     const result = await window.api.openAddonsFolder()
     if (!result.ok) toast.error(result.error)
@@ -252,6 +257,17 @@ export default function SettingsSheet(): React.JSX.Element {
               >
                 {updateStatusText()}
               </p>
+              <div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  title={t('settings.logsHint')}
+                  onClick={openLogs}
+                >
+                  <FolderOpen className="size-4" />
+                  {t('settings.openLogs')}
+                </Button>
+              </div>
               <div className="grid gap-1">
                 <Label className="flex items-center gap-2">
                   <Checkbox

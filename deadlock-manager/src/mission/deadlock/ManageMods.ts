@@ -36,6 +36,7 @@ import { disabledDir, manifestSavedAt, readManifest, writeManifest } from './man
 import { isPatched, patch } from './gameinfo'
 import { extractZip as extract } from '../func/extractZip'
 import { extractRar } from '../func/extractRar'
+import { extract7z } from '../func/extract7z'
 import { gameBanana, parseModId } from '../gamebanana'
 import {
   buildColorStyles,
@@ -163,8 +164,20 @@ export class ManageMods {
       onProgress,
       filesServerUrl(mod.id, file.name)
     )
-    if (file.md5Checksum && (await this.md5(archive)) !== file.md5Checksum.toLowerCase()) {
-      throw new AppError('error.checksum')
+    if (file.md5Checksum) {
+      const actual = await this.md5(archive)
+      if (actual !== file.md5Checksum.toLowerCase()) {
+        console.warn('[download] checksum', {
+          mod: mod.id,
+          file: file.name,
+          url: file.url,
+          expected: file.md5Checksum,
+          actual,
+          declaredSize: file.size,
+          size: (await stat(archive)).size
+        })
+        throw new AppError('error.checksum')
+      }
     }
     return archive
   }
@@ -325,7 +338,7 @@ export class ManageMods {
   }
 
   /**
-   * Installa una mod da un file sul computer (`.zip`, `.rar` o `.vpk`), per esempio scaricato a
+   * Installa una mod da un file sul computer (`.zip`, `.rar`, `.7z` o `.vpk`), per esempio scaricato a
    * mano o non pubblicato su GameBanana. Diventa una mod esterna (`Local-<nome del file>`), con
    * il nome del file e la categoria e l'eroe ricavati dal contenuto; si può collegare a una mod di
    * GameBanana dalla pagina Installate.
@@ -372,7 +385,7 @@ export class ManageMods {
   }
 
   /**
-   * Estrae `archive` (`.zip`, `.rar` o `.vpk`) nella cartella temporanea `tmp` e copia i suoi VPK
+   * Estrae `archive` (`.zip`, `.rar`, `.7z` o `.vpk`) nella cartella temporanea `tmp` e copia i suoi VPK
    * in `addons` con il prefisso `pakNN`, poi registra la mod nel manifest con la voce data da
    * `entry` (che riceve il manifest attuale e può rifiutare con un errore). Solo la copia e il
    * manifest passano dalla coda delle operazioni, dove serve scegliere i `pakNN` liberi.
@@ -411,7 +424,7 @@ export class ManageMods {
   }
 
   /**
-   * Estrae `archive` (`.zip`, `.rar` o `.vpk`) nella cartella temporanea `tmp` e ne elenca i VPK.
+   * Estrae `archive` (`.zip`, `.rar`, `.7z` o `.vpk`) nella cartella temporanea `tmp` e ne elenca i VPK.
    * Due formati:
    * - VPK diviso: `<nome>_dir.vpk` più le parti `<nome>_000.vpk`, `<nome>_001.vpk`, ...
    * - VPK a file unico: `<nome>.vpk`, che il gioco carica rinominato `pakNN_dir.vpk`
@@ -422,6 +435,7 @@ export class ManageMods {
     const ext = extname(archive).toLowerCase()
     if (ext === '.zip') await extract(archive, dir)
     else if (ext === '.rar') await extractRar(archive, dir)
+    else if (ext === '.7z') await extract7z(archive, dir)
     else if (ext === '.vpk') await copyFile(archive, join(dir, basename(archive)))
     else throw new AppError('error.unsupportedFormat', { ext })
 
@@ -549,6 +563,7 @@ export class ManageMods {
       r.ok && !!r.body && !r.headers.get('content-type')?.includes('text/html')
     let res = await fetch(url)
     if (!isFile(res) && fallbackUrl) {
+      console.warn('[download] fallback', url, res.status, res.headers.get('content-type'))
       await res.body?.cancel()
       res = await fetch(fallbackUrl)
     }

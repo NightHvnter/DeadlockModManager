@@ -11,6 +11,10 @@ export interface ModActionsContextValue {
   install: (modId: string, fileName?: string) => Promise<boolean>
   uninstall: (modId: string) => Promise<boolean>
   update: (modId: string) => Promise<boolean>
+  /** Aggiorna le mod una alla volta; un errore non ferma le altre. */
+  updateAll: (mods: { id: string; name: string }[]) => Promise<void>
+  /** Avanzamento di `updateAll`, `null` se non è in corso. */
+  updatingAll: { done: number; total: number } | null
   setEnabled: (modId: string, enabled: boolean) => Promise<boolean>
   /** Collega la mod esterna `localId` alla mod di GameBanana `modId`. */
   link: (localId: string, modId: string) => Promise<boolean>

@@ -3,7 +3,7 @@ import { toast } from 'sonner'
 import { useI18n } from '@/hooks/useI18n'
 
 /** Estensioni dei file che si possono installare. */
-export const LOCAL_MOD_EXTENSIONS = ['.zip', '.rar', '.vpk']
+export const LOCAL_MOD_EXTENSIONS = ['.zip', '.rar', '.7z', '.vpk']
 
 /**
  * Installazione di mod da file sul computer, con i messaggi di esito. `install()` senza percorsi

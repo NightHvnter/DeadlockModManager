@@ -3,6 +3,7 @@ import { basename, join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { checkForUpdates, getUpdateStatus, initUpdater, installUpdate } from './updater'
+import { initLogging, logsDir } from './logger'
 import { GameBananaCatalog, INCREMENTAL_INTERVAL_MS } from '../mission/gamebanana'
 import {
   ManageMods,
@@ -53,6 +54,7 @@ async function toResult<T>(fn: () => T | Promise<T>): Promise<IpcResult<T>> {
   try {
     return { ok: true, data: await fn() }
   } catch (e) {
+    console.error('[ipc]', e)
     return { ok: false, error: describeError(e, language) }
   }
 }
@@ -77,6 +79,11 @@ function createWindow(): void {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
+  })
+
+  // anche gli errori dell'interfaccia finiscono nel log
+  mainWindow.webContents.on('console-message', ({ level, message, sourceId, lineNumber }) => {
+    if (level === 'error') console.error('[ui]', message, `${sourceId}:${lineNumber}`)
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -210,7 +217,9 @@ function registerIpc(): void {
         const options: Electron.OpenDialogOptions = {
           title: translate(language, 'dialog.chooseModFiles'),
           properties: ['openFile', 'multiSelections'],
-          filters: [{ name: 'Mod (.zip, .rar, .vpk)', extensions: ['zip', 'rar', 'vpk'] }]
+          filters: [
+            { name: 'Mod (.zip, .rar, .7z, .vpk)', extensions: ['zip', 'rar', '7z', 'vpk'] }
+          ]
         }
         const { canceled, filePaths } = window
           ? await dialog.showOpenDialog(window, options)
@@ -308,6 +317,14 @@ function registerIpc(): void {
     })
   )
 
+  ipcMain.handle('settings:openLogs', () =>
+    toResult(async () => {
+      const error = await shell.openPath(logsDir())
+      if (error) throw new Error(error)
+      return null
+    })
+  )
+
   // importazione ed esportazione nel formato "Deadlock Mod Interchange" del manager ufficiale
   ipcMain.handle('interchange:export', (event) =>
     toResult(async () => {
@@ -394,6 +411,8 @@ async function checkGameinfo(forceRepair = false): Promise<GameinfoStatus> {
     await remoteLookup()
   )
 }
+
+initLogging()
 
 // su KDE Wayland la gestione colore di Chromium riempie il terminale di errori inutili
 if (process.platform === 'linux')

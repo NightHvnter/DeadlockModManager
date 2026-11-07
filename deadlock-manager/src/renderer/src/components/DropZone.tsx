@@ -8,7 +8,7 @@ const isModFile = (name: string): boolean =>
   LOCAL_MOD_EXTENSIONS.some((ext) => name.toLowerCase().endsWith(ext))
 
 /**
- * Permette di installare mod trascinando i loro file (`.zip`, `.rar`, `.vpk`) in qualsiasi punto
+ * Permette di installare mod trascinando i loro file (`.zip`, `.rar`, `.7z`, `.vpk`) in qualsiasi punto
  * della finestra: mentre si trascina un file mostra un riquadro che copre tutta l'app.
  */
 export default function DropZone(): React.JSX.Element | null {
