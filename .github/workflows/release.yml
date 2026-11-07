@@ -21,7 +21,7 @@ jobs:
     name: Create draft release
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Check that the tag matches package.json
         run: |
@@ -60,13 +60,14 @@ jobs:
     defaults:
       run:
         working-directory: deadlock-manager
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
-      - uses: actions/checkout@v4
+      # niente credenziali salvate in .git: gli script di `npm ci` non devono poterle leggere
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm
@@ -89,6 +90,8 @@ jobs:
 
       - name: Package and upload to the draft release
         if: matrix.target != 'linux'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx electron-builder --${{ matrix.target }} --publish always
 
       # Su Linux lo snap si crea a parte: electron-builder pubblica sempre gli snap sullo Snap Store
@@ -96,6 +99,8 @@ jobs:
       # carica nella bozza con gh.
       - name: Package and upload to the draft release (Linux)
         if: matrix.target == 'linux'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           npx electron-builder --linux AppImage deb rpm pacman flatpak --publish always
           npx electron-builder --linux snap --publish never

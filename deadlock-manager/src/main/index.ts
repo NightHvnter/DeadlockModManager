@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, shell, session, BrowserWindow, ipcMain, dialog } from 'electron'
 import { basename, join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -73,7 +73,7 @@ function createWindow(): void {
     icon,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      sandbox: true
     }
   })
 
@@ -91,6 +91,9 @@ function createWindow(): void {
     if (/^https?:\/\//.test(details.url)) shell.openExternal(details.url)
     return { action: 'deny' }
   })
+
+  // la finestra resta sull'app: una pagina caricata al suo posto avrebbe accesso a `window.api`
+  mainWindow.webContents.on('will-navigate', (event) => event.preventDefault())
 
   // HMR for renderer base on electron-vite cli.
   // Load the remote URL for development or the local html file for production.
@@ -424,6 +427,10 @@ if (process.platform === 'linux')
 app.whenReady().then(async () => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.deadlockmodmanager.app')
+
+  // l'app non usa webcam, microfono e simili: Electron li concederebbe senza chiedere
+  session.defaultSession.setPermissionRequestHandler((_, __, callback) => callback(false))
+  session.defaultSession.setPermissionCheckHandler(() => false)
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
