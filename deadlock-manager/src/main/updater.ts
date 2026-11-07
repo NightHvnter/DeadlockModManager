@@ -35,7 +35,7 @@ function canSelfUpdate(): boolean {
 export function initUpdater(checkNow: boolean): void {
   autoUpdater.autoDownload = true
   autoUpdater.autoInstallOnAppQuit = true
-  autoUpdater.logger = null
+  autoUpdater.logger = console
 
   autoUpdater.on('checking-for-update', () => setStatus({ state: 'checking' }))
   autoUpdater.on('update-not-available', () => setStatus({ state: 'upToDate' }))

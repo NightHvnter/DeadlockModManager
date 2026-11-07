@@ -18,8 +18,8 @@ the app → **Open**).
 
 - Mod list with search, filters by category, hero and type (visual, audio, maps) and sorting
 - Mod details: image gallery, description, audio preview, update history and the mod's files, each with its own install button: several files of a mod can be installed together
-- Installation from `.zip`, `.rar` or `.vpk` files, with MD5 verification and download progress
-- **Installed** page: enable/disable, update and uninstall mods, and change their load order
+- Installation from `.zip`, `.rar`, `.7z` or `.vpk` files, with MD5 verification and download progress
+- **Installed** page: enable/disable, update (one by one or all together) and uninstall mods, and change their load order
 - **Profiles**: sets of enabled mods with their load order, to switch between them in one click
 - **Play** button that makes sure mods are still active after a game update and launches Deadlock through Steam
 - Automatic detection of the Deadlock folder in the Steam libraries (Windows, Linux, macOS)
@@ -161,6 +161,10 @@ number of requests of each sync; the progress is also visible in the settings.
 
 The settings are stored in `settings.json` in the app's data folder
 (`%APPDATA%/deadlock-manager` on Windows).
+
+Errors and download problems are written to `logs/app.log` in the same folder (the previous log is
+kept as `app.old.log` once it passes 5 MB). **Settings → Open logs** opens it, for reporting a
+problem. The log can contain folder paths from your computer.
 
 ## Development
 

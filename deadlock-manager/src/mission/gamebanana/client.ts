@@ -49,22 +49,28 @@ const USER_AGENT = 'DeadlockModManager (+https://github.com/NightHvnter/Deadlock
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
 
-/** Al massimo `MAX_CONCURRENCY` richieste insieme e `MAX_REQUESTS_PER_SECOND` al secondo. */
+/**
+ * Al massimo `MAX_CONCURRENCY` richieste insieme e `MAX_REQUESTS_PER_SECOND` al secondo. Le
+ * richieste `urgent` valgono per l'utente che sta aspettando e superano quelle in coda: una
+ * sincronizzazione ne accoda migliaia. I limiti restano gli stessi per tutte.
+ */
 class RateLimiter {
   private active = 0
   private waiting: (() => void)[] = []
+  private urgent: (() => void)[] = []
   /** Istanti di partenza delle richieste dell'ultimo secondo. */
   private starts: number[] = []
 
-  async run<T>(fn: () => Promise<T>): Promise<T> {
-    if (this.active >= MAX_CONCURRENCY) await new Promise<void>((r) => this.waiting.push(r))
+  async run<T>(fn: () => Promise<T>, urgent = false): Promise<T> {
+    if (this.active >= MAX_CONCURRENCY)
+      await new Promise<void>((r) => (urgent ? this.urgent : this.waiting).push(r))
     this.active++
     try {
       await this.waitForWindow()
       return await fn()
     } finally {
       this.active--
-      this.waiting.shift()?.()
+      ;(this.urgent.shift() ?? this.waiting.shift())?.()
     }
   }
 
@@ -112,7 +118,7 @@ export class GameBananaClient {
    * che Cloudflare tenga in cache una risposta vuota, quindi i tentativi successivi aggirano la
    * cache con un parametro in più.
    */
-  private get<T>(url: string): Promise<T> {
+  private get<T>(url: string, urgent = false): Promise<T> {
     return this.limiter.run(async () => {
       let bustCache = false
       for (let attempt = 0; ; attempt++) {
@@ -146,7 +152,7 @@ export class GameBananaClient {
           throw new AppError('error.api', { status })
         await sleep(delay)
       }
-    })
+    }, urgent)
   }
 
   /**
@@ -202,7 +208,7 @@ export class GameBananaClient {
 
   /** File scaricabili di una mod. */
   downloadPage(type: SubmissionType, id: number): Promise<GbDownloadPage> {
-    return this.get(`${API}${type}/${id}/DownloadPage`)
+    return this.get(`${API}${type}/${id}/DownloadPage`, true)
   }
 
   /** Pagina del changelog di una mod, dalla voce più recente. */
@@ -211,7 +217,7 @@ export class GameBananaClient {
       _nPage: String(page),
       _nPerpage: String(UPDATES_PAGE_SIZE)
     })
-    return this.get(`${API}${type}/${id}/Updates?${params}`)
+    return this.get(`${API}${type}/${id}/Updates?${params}`, true)
   }
 }
 

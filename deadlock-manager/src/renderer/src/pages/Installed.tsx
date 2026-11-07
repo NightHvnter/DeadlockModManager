@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { toast } from 'sonner'
-import { FileUp, FolderOpen, Link2, ListOrdered, TriangleAlert } from 'lucide-react'
+import { FileUp, FolderOpen, Link2, ListOrdered, RefreshCw, TriangleAlert } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -35,7 +35,8 @@ const MANAGE_PROFILES = '__manage'
 
 /** Pagina con le mod installate: attivazione, aggiornamento e disinstallazione. */
 export default function Installed(): React.JSX.Element {
-  const { version, isBusy, progress, uninstall, update, setEnabled } = useModActions()
+  const { version, isBusy, progress, uninstall, update, updateAll, updatingAll, setEnabled } =
+    useModActions()
   const [mods, setMods] = useState<InstalledModInfo[] | null>(null)
   const [search, setSearch] = useState('')
   const [stateFilter, setStateFilter] = useState<StateFilter>('all')
@@ -108,7 +109,8 @@ export default function Installed(): React.JSX.Element {
       matchesState(m) &&
       (!q || m.name.toLowerCase().includes(q) || m.author.toLowerCase().includes(q))
   )
-  const updates = mods.filter((m) => m.updateAvailable).length
+  const toUpdate = mods.filter((m) => m.updateAvailable)
+  const updates = toUpdate.length
 
   return (
     <div className="space-y-4">
@@ -137,6 +139,17 @@ export default function Installed(): React.JSX.Element {
           {t('installed.count', { count: mods.length })}
           {updates > 0 && t('installed.toUpdate', { count: updates })}
         </span>
+        {(updates > 1 || updatingAll) && (
+          <Button size="sm" disabled={!!updatingAll} onClick={() => updateAll(toUpdate)}>
+            <RefreshCw className={updatingAll ? 'size-4 animate-spin' : 'size-4'} />
+            {updatingAll
+              ? t('installed.updatingAll', {
+                  done: updatingAll.done + 1,
+                  total: updatingAll.total
+                })
+              : t('installed.updateAll', { count: updates })}
+          </Button>
+        )}
         <Select
           value={profiles.state?.activeId ?? NO_PROFILE}
           onValueChange={(v) => {
